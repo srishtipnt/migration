@@ -79,20 +79,20 @@ const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
     setSuccess('');
 
     try {
-      const response = await apiService.request('/auth/register', {
-        method: 'POST',
-        data: {
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          username: formData.username.trim(),
-          email: formData.email.trim(),
-          password: formData.password
-        }
+      const response = await apiService.register({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password
       });
 
       if (response.success) {
         // Store the token
         apiService.setToken(response.data.token);
+        
+        // Store user data in localStorage
+        localStorage.setItem('userData', JSON.stringify(response.data.user));
         
         // Show success message
         setSuccess('Account created successfully! Redirecting...');

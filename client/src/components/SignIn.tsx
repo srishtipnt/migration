@@ -54,17 +54,17 @@ const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setSuccess('');
 
     try {
-      const response = await apiService.request('/auth/login', {
-        method: 'POST',
-        data: {
-          email: formData.email,
-          password: formData.password
-        }
+      const response = await apiService.login({
+        email: formData.email,
+        password: formData.password
       });
 
       if (response.success) {
         // Store the token
         apiService.setToken(response.data.token);
+        
+        // Store user data in localStorage
+        localStorage.setItem('userData', JSON.stringify(response.data.user));
         
         // Show success message
         setSuccess('Login successful! Redirecting...');

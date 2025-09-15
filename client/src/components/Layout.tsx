@@ -14,6 +14,21 @@ interface User {
   avatar?: string;
 }
 
+// Helper function to decode JWT token
+const decodeJWT = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding JWT:', error);
+    return null;
+  }
+};
+
 const Layout: React.FC<LayoutProps> = ({ children, showNavbar = true }) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
@@ -21,30 +36,44 @@ const Layout: React.FC<LayoutProps> = ({ children, showNavbar = true }) => {
   // Check for existing user session on component mount
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (token) {
+    const storedUser = localStorage.getItem('userData');
+    
+    if (token && storedUser) {
       // Set the token in the API service
       apiService.setToken(token);
       
-      // Try to get current user info
-      apiService.request('/auth/me')
-        .then((response) => {
-          if (response.success) {
-            setUser({
-              name: `${response.data.user.firstName} ${response.data.user.lastName}`,
-              email: response.data.user.email,
-              avatar: undefined
-            });
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to get user info:', error);
-          // Clear invalid token
-          localStorage.removeItem('authToken');
-          apiService.setToken(null);
-          setUser(null);
+      try {
+        // Parse stored user data
+        const userData = JSON.parse(storedUser);
+        setUser({
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
+          email: userData.email || 'user@example.com',
+          avatar: undefined
         });
+      } catch (error) {
+        console.error('Error parsing stored user data:', error);
+        // Fallback: try to decode JWT token
+        const decoded = decodeJWT(token);
+        if (decoded && decoded.userId) {
+          setUser({
+            name: 'Authenticated User',
+            email: 'user@example.com',
+            avatar: undefined
+          });
+        }
+      }
+    } else if (token) {
+      // Only token available, try to decode it
+      apiService.setToken(token);
+      const decoded = decodeJWT(token);
+      if (decoded && decoded.userId) {
+        setUser({
+          name: 'Authenticated User',
+          email: 'user@example.com',
+          avatar: undefined
+        });
+      }
     } else {
-      // Don't set mock user - let the navbar show login/register buttons
       setUser(null);
     }
   }, []);
@@ -54,6 +83,9 @@ const Layout: React.FC<LayoutProps> = ({ children, showNavbar = true }) => {
     // Set the token in the API service
     apiService.setToken(token);
     
+    // Store user data in localStorage
+    localStorage.setItem('userData', JSON.stringify(userData));
+    
     setUser({
       name: `${userData.firstName} ${userData.lastName}`,
       email: userData.email,
@@ -61,23 +93,17 @@ const Layout: React.FC<LayoutProps> = ({ children, showNavbar = true }) => {
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      // Call logout API endpoint
-      await apiService.request('/auth/logout', { method: 'POST' });
-    } catch (error) {
-      console.error('Logout API call failed:', error);
-    } finally {
-      // Clear local storage and user state
-      localStorage.removeItem('authToken');
-      setUser(null);
-      
-      // Redirect to home page
-      navigate('/');
-      
-      // Show success message
-      alert('Successfully logged out!');
-    }
+  const handleLogout = () => {
+    // Clear local storage and user state
+    apiService.logout();
+    localStorage.removeItem('userData');
+    setUser(null);
+    
+    // Redirect to home page
+    navigate('/');
+    
+    // Show success message
+    alert('Successfully logged out!');
   };
 
   return (
