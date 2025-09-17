@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import archiver from 'archiver';
 import { v4 as uuidv4 } from 'uuid';
+import { v2 as cloudinary } from 'cloudinary';
 import FileStorage from '../models/FileStorage.js';
 import { generateFileName } from '../middleware/upload.js';
 import { isZipFile, extractZipFile, validateZipFile } from '../utils/zipUtils.js';
@@ -340,6 +341,8 @@ export const deleteFile = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
+    console.log(`🗑️  Deleting file ${id} for user ${userId}`);
+
     const file = await FileStorage.findOne({ _id: id, userId });
     if (!file) {
       return res.status(404).json({
@@ -349,17 +352,66 @@ export const deleteFile = async (req, res) => {
       });
     }
 
-    // Delete file from storage
-    if (fs.existsSync(file.filePath)) {
-      await fs.remove(file.filePath);
+    console.log(`🗑️  Found file:`, {
+      id: file._id,
+      originalFilename: file.originalFilename,
+      storageType: file.storageType,
+      public_id: file.public_id,
+      secure_url: file.secure_url
+    });
+    
+    // Debug: Log all file properties to see what's available
+    console.log(`🗑️  All file properties:`, Object.keys(file.toObject()));
+    console.log(`🗑️  File object:`, file.toObject());
+
+    let cloudinaryDeleteResult = null;
+
+    // Handle Cloudinary files
+    if (file.storageType === 'cloudinary' && file.public_id) {
+      try {
+        console.log(`🗑️  Deleting from Cloudinary: ${file.public_id}`);
+        cloudinaryDeleteResult = await cloudinary.api.delete_resources([file.public_id], {
+          resource_type: 'raw'
+        });
+        console.log(`✅ Cloudinary deletion result:`, cloudinaryDeleteResult);
+      } catch (cloudinaryError) {
+        console.error(`❌ Cloudinary deletion error:`, cloudinaryError);
+        // Continue with database deletion even if Cloudinary fails
+      }
+    }
+    // Handle local files
+    else if (file.storageType === 'local' && file.filePath) {
+      try {
+        if (fs.existsSync(file.filePath)) {
+          await fs.remove(file.filePath);
+          console.log(`✅ Local file deleted: ${file.filePath}`);
+        } else {
+          console.log(`⚠️  Local file not found: ${file.filePath}`);
+        }
+      } catch (fsError) {
+        console.error(`❌ Local file deletion error:`, fsError);
+        // Continue with database deletion even if file system fails
+      }
     }
 
     // Delete file record from database
     await FileStorage.findByIdAndDelete(id);
+    console.log(`✅ Database record deleted: ${id}`);
 
     res.json({
       success: true,
-      message: 'File deleted successfully'
+      message: 'File deleted successfully',
+      deletedFile: {
+        id: file._id,
+        originalFilename: file.originalFilename,
+        storageType: file.storageType
+      },
+      cloudinaryResult: cloudinaryDeleteResult,
+      details: {
+        databaseDeleted: 1,
+        cloudinaryDeleted: cloudinaryDeleteResult?.deleted?.length || 0,
+        cloudinaryNotFound: cloudinaryDeleteResult?.not_found?.length || 0
+      }
     });
   } catch (error) {
     console.error('Delete file error:', error);

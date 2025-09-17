@@ -5,34 +5,31 @@ import FileStorage from '../models/FileStorage.js';
 // Authenticate JWT token
 export const authenticateToken = async (req, res, next) => {
   try {
+    console.log('🔐 Auth middleware called');
+    console.log('🔐 Hostname:', req.hostname);
+    console.log('🔐 Headers:', req.headers);
+    
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    console.log('🔐 Token present:', !!token);
+
     // If no token provided, use development bypass for localhost
     if (!token && (req.hostname === 'localhost' || req.hostname === '127.0.0.1' || process.env.NODE_ENV === 'development')) {
-      // Get an existing user from database for development
-      const existingUser = await User.findOne({}).select('-password');
-      
-      if (existingUser) {
-        req.user = existingUser;
-        return next();
-      } else {
-        // If no users exist, create a development user
-        const mongoose = await import('mongoose');
-        const devUser = new User({
-          email: 'dev@example.com',
-          username: 'devuser',
-          firstName: 'Dev',
-          lastName: 'User',
-          role: 'user',
-          isActive: true,
-          maxFileSize: 104857600, // 100MB
-          password: 'devpassword' // This won't be used for auth
-        });
-        await devUser.save();
-        req.user = devUser;
-        return next();
-      }
+      // Create a mock development user without database access
+      req.user = {
+        id: '507f1f77bcf86cd799439011', // Valid MongoDB ObjectId format
+        email: 'dev@example.com',
+        username: 'devuser',
+        firstName: 'Dev',
+        lastName: 'User',
+        role: 'user',
+        isActive: true,
+        maxFileSize: 104857600 // 100MB
+      };
+      console.log('🔧 Using development user bypass');
+      console.log('🔧 User set:', req.user);
+      return next();
     }
 
     if (!token) {

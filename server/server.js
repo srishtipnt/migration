@@ -14,6 +14,7 @@ import connectDB from './config/database.js';
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
+import zipCloudinaryRoutes from './routes/zipCloudinaryRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -91,6 +92,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/zip-cloudinary', zipCloudinaryRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -169,6 +171,8 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`📁 Upload directory: ${process.env.UPLOAD_PATH || './uploads'}`);
   console.log(`🗄️  Database: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/migration-service'}`);
+  console.log(`🔧 Debug mode: Enhanced logging enabled`);
+  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary`);
 });
 
 // Graceful shutdown

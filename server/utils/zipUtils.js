@@ -52,7 +52,7 @@ export const extractZipFile = async (zipBuffer, options = {}) => {
   const {
     maxFiles = 5000,
     maxFileSize = 50 * 1024 * 1024, // 50MB
-    allowedExtensions = ['.js', '.ts', '.jsx', '.tsx', '.json', '.html', '.css', '.xml', '.txt', '.md', '.sql', '.yaml', '.yml', '.py', '.java', '.c', '.cpp', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.clj', '.hs', '.ml', '.fs', '.dart', '.lua', '.pl', '.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd'],
+    allowedExtensions = [], // Empty array means allow all extensions
     skipDirectories = false
   } = options;
   
@@ -112,10 +112,10 @@ export const extractZipFile = async (zipBuffer, options = {}) => {
             continue;
           }
           
-          // Check file extension
+          // Check file extension (only if allowedExtensions is explicitly set and not empty)
           const extension = path.extname(item).toLowerCase();
-          if (allowedExtensions.length > 0 && !allowedExtensions.includes(extension)) {
-            console.warn(`Skipping file with unsupported extension: ${itemRelativePath}`);
+          if (allowedExtensions && allowedExtensions.length > 0 && !allowedExtensions.includes(extension)) {
+            console.warn(`Skipping file with unsupported extension: ${itemRelativePath} (extension: ${extension})`);
             continue;
           }
           

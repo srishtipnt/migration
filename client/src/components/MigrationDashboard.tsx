@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
-  Upload,
   Download,
   Trash2,
-  Eye,
   Folder,
   RefreshCw,
   Code,
-  ArrowRight,
   Play
 } from 'lucide-react';
-import FileUpload from './FileUpload';
+import UploadSection from './UploadSection';
 import apiService from '../services/api';
 
 interface MigrationDashboardProps {
@@ -31,6 +28,7 @@ interface FileData {
 }
 
 const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
+  // userId is used for API calls and file organization
   const [files, setFiles] = useState<FileData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +90,25 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
     }
   };
 
+  // Handle ZIP file upload
+  const handleZipUpload = async (zipFile: File) => {
+    try {
+      const response = await apiService.uploadFiles([zipFile]);
+      if (response.success) {
+        await loadFiles(); // Reload files after upload
+      }
+    } catch (err) {
+      console.error('ZIP upload failed:', err);
+      setError('ZIP upload failed');
+    }
+  };
+
+  // Handle ZIP clear
+  const handleClearZip = () => {
+    // This could be used to clear any ZIP-related state
+    console.log('ZIP cleared');
+  };
+
   // Handle file deletion
   const handleDeleteFile = async (fileId: string) => {
     try {
@@ -124,7 +141,7 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
   // Handle create ZIP archive
   const handleCreateZip = async () => {
     try {
-      const fileIds = selectedFiles.length > 0 ? selectedFiles : files.map(f => f.id);
+      const fileIds: string[] = selectedFiles.length > 0 ? selectedFiles : files.map(f => f.id);
       const blob = await apiService.createZipArchive(fileIds);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -220,21 +237,25 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
                   <p>{error}</p>
                 </div>
                 <div className="mt-4">
-                  <button
+              <button
                     onClick={() => setError(null)}
                     className="bg-red-100 px-2 py-1 rounded text-sm text-red-800 hover:bg-red-200"
                   >
                     Dismiss
-                  </button>
+              </button>
+        </div>
                 </div>
               </div>
-            </div>
           </div>
         )}
 
         {/* File Upload Section */}
         <div className="mb-8">
-          <FileUpload onUpload={handleFileUpload} />
+          <UploadSection 
+            onFileUpload={handleFileUpload}
+            onZipUpload={handleZipUpload}
+            onClearZip={handleClearZip}
+          />
         </div>
 
         {/* Conversion Form */}
@@ -286,7 +307,7 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
                         <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
-                  </div>
+              </div>
                 </div>
 
                 {/* Conversion Button */}
@@ -417,9 +438,9 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
                             {file.extractedFrom && (
                               <div className="text-sm text-gray-500">
                                 From: {file.extractedFrom}
-                              </div>
+                </div>
                             )}
-                          </div>
+                        </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -430,29 +451,29 @@ const MigrationDashboard: React.FC<MigrationDashboardProps> = ({ userId }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <button
+                        <button
                             onClick={() => handleDownloadFile(file.id, file.originalName)}
                             className="text-blue-600 hover:text-blue-900"
                             title="Download"
                           >
                             <Download className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteFile(file.id)}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFile(file.id)}
                             className="text-red-600 hover:text-red-900"
                             title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
       </div>
     </div>
   );
