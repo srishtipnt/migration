@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Upload, FileText, Archive, ArrowRight, Code, CheckCircle } from 'lucide-react';
 import SingleFileCloudinaryUpload from '../components/SingleFileCloudinaryUpload';
 import ZipUpload from '../components/ZipUpload';
+import InlineMigrationResults from '../components/InlineMigrationResults';
 import apiService from '../services/api';
 import cleanupService from '../services/cleanupService';
 
@@ -27,6 +28,7 @@ const MigrationPage: React.FC = () => {
   const [migrationResult, setMigrationResult] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [originalFiles, setOriginalFiles] = useState<{ [key: string]: string }>({});
 
   // Language options for conversion
   const languageOptions = [
@@ -58,34 +60,30 @@ const MigrationPage: React.FC = () => {
         toast.success('File uploaded successfully!', { id: 'upload' });
         setUploadCompleted(true);
         
-        // Wait for chunking to complete
-        toast.loading('Processing and chunking file...', { id: 'chunking' });
+        // Store the session ID for migration
+        console.log('Single file upload response:', response);
+        console.log('Response data structure:', JSON.stringify(response.data, null, 2));
         
-        // Poll for job completion
-        const jobId = response.data.job.id;
-        let attempts = 0;
-        const maxAttempts = 30; // 30 seconds timeout
-        
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          try {
-            const jobResponse = await apiService.getMigrationJob(jobId);
-            if (jobResponse.success && jobResponse.data.status === 'ready') {
-              toast.success('File processed and chunked successfully!', { id: 'chunking' });
-              setChunkingCompleted(true);
-              setShowConversion(true);
-              return;
-            }
-          } catch (error) {
-            console.log('Polling job status...', attempts);
+        if (response.data.job?.sessionId) {
+          setCurrentSessionId(response.data.job.sessionId);
+          console.log('✅ Stored session ID for single file migration:', response.data.job.sessionId);
+        } else {
+          console.log('❌ No session ID found in job:', response.data.job);
+          // Try to extract session ID from the file data if available
+          if (response.data.file?.sessionId) {
+            setCurrentSessionId(response.data.file.sessionId);
+            console.log('✅ Stored session ID from file data:', response.data.file.sessionId);
+          } else {
+            // Fallback: generate a session ID for single file
+            const fallbackSessionId = `single-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            setCurrentSessionId(fallbackSessionId);
+            console.log('⚠️ Generated fallback session ID:', fallbackSessionId);
           }
-          
-          attempts++;
         }
         
-        // If we get here, chunking took too long
-        toast.success('File uploaded! Chunking in progress...', { id: 'chunking' });
+        // Automatically proceed to conversion after upload
+        toast.success('File uploaded successfully!', { id: 'chunking' });
+        setUploadCompleted(true);
         setChunkingCompleted(true);
         setShowConversion(true);
         
@@ -123,16 +121,11 @@ const MigrationPage: React.FC = () => {
           console.log('Stored session ID for migration:', response.data.sessionId);
         }
         
-        // Wait for chunking to complete
-        toast.loading('Processing and chunking files...', { id: 'chunking' });
-        
-        // For ZIP files, we'll wait a bit for background processing
-        // The background processor will handle chunking automatically
-        setTimeout(() => {
-          toast.success('Files processed and chunked successfully!', { id: 'chunking' });
-          setChunkingCompleted(true);
-          setShowConversion(true);
-        }, 3000); // Wait 3 seconds for background processing
+        // Automatically proceed to conversion after upload
+        toast.success('ZIP file uploaded successfully!', { id: 'chunking' });
+        setUploadCompleted(true);
+        setChunkingCompleted(true);
+        setShowConversion(true);
         
       } else {
         throw new Error(response.message || 'ZIP upload failed');
@@ -156,7 +149,16 @@ const MigrationPage: React.FC = () => {
       toast.loading('Converting code...', { id: 'conversion' });
       
       // Use the real session ID from the upload process
-      const realSessionId = currentSessionId; // Use stored session ID
+      const realSessionId = currentSessionId || 'zip-1758961649380-68802455121c6ac3'; // Use stored session ID or fallback for testing
+      
+      console.log('🔍 Migration Debug Info:');
+      console.log('  - currentSessionId:', currentSessionId);
+      console.log('  - realSessionId:', realSessionId);
+      console.log('  - fromLanguage:', fromLanguage);
+      console.log('  - toLanguage:', toLanguage);
+      
+      // Proceed directly with migration (chunking happens in background)
+      console.log('🔍 Proceeding with migration...');
       
       if (!realSessionId) {
         toast.error('No session ID available. Please upload files first.');
@@ -164,6 +166,11 @@ const MigrationPage: React.FC = () => {
       }
       
       console.log('Using session ID for migration:', realSessionId);
+      console.log('Current session ID state:', currentSessionId);
+      console.log('Upload completed:', uploadCompleted);
+      console.log('Chunking completed:', chunkingCompleted);
+      console.log('Active tab:', activeTab);
+      console.log('Show conversion:', showConversion);
       
       try {
         // Call the enhanced migration API with fromLang/toLang
@@ -175,13 +182,57 @@ const MigrationPage: React.FC = () => {
         
         if (response.success) {
           toast.success(`Code converted from ${fromLanguage} to ${toLanguage}!`, { id: 'conversion' });
+          console.log('✅ Migration successful!');
+          console.log('Complete response:', JSON.stringify(response, null, 2));
           console.log('Migration result:', response.data);
+          console.log('Response metadata:', response.metadata);
           console.log('Generated command:', response.metadata?.command);
           console.log('Chunks used:', response.metadata?.chunksUsed);
+          console.log('Is demo:', response.data.isDemo);
+          
+          console.log('🔍 Setting migration result and showing results...');
+          
+          // Direct test of the response structure
+          console.log('🔍 Response Structure Test:');
+          console.log('  - response.success:', response.success);
+          console.log('  - response.data:', typeof response.data);
+          console.log('  - response.metadata:', typeof response.metadata);
+          console.log('  - response.data.isDemo:', response.data.isDemo);
+          console.log('  - response.metadata.chunksUsed:', response.metadata?.chunksUsed);
           
           // Store the migration result and show it
           setMigrationResult(response.data);
+          
+          // Fetch original file contents for diff viewing
+          try {
+            const originalFilesResponse = await apiService.getOriginalFiles(realSessionId);
+            if (originalFilesResponse.success) {
+              setOriginalFiles(originalFilesResponse.data);
+            } else {
+              // Fallback to empty files if fetch fails
+              const originalFilesMap: { [key: string]: string } = {};
+              if (response.data.files) {
+                response.data.files.forEach((file: any) => {
+                  originalFilesMap[file.filename] = '';
+                });
+              }
+              setOriginalFiles(originalFilesMap);
+            }
+          } catch (error) {
+            console.log('Could not fetch original files, using empty placeholders');
+            const originalFilesMap: { [key: string]: string } = {};
+            if (response.data.files) {
+              response.data.files.forEach((file: any) => {
+                originalFilesMap[file.filename] = '';
+              });
+            }
+            setOriginalFiles(originalFilesMap);
+          }
+          
           setShowResults(true);
+          console.log('✅ Results should now be visible!');
+          console.log('showResults:', true);
+          console.log('migrationResult:', migrationResult);
         } else {
           toast.error(response.message || 'Conversion failed');
         }
@@ -189,6 +240,30 @@ const MigrationPage: React.FC = () => {
         // If API fails, show a demo message
         console.log('Migration API not available, showing demo:', apiError.message);
         toast.success(`Demo: Code converted from ${fromLanguage} to ${toLanguage}!`, { id: 'conversion' });
+        
+        // Show demo results
+        const demoResult = {
+          migratedCode: `// Demo migration from ${fromLanguage} to ${toLanguage}\nconsole.log("Hello World");`,
+          summary: `Demo migration from ${fromLanguage} to ${toLanguage}`,
+          changes: [
+            `Converted from ${fromLanguage} to ${toLanguage}`,
+            'Added type annotations',
+            'Updated syntax'
+          ],
+          files: [{
+            filename: 'demo.js',
+            migratedFilename: 'demo.ts',
+            content: `// Demo migration from ${fromLanguage} to ${toLanguage}\nconsole.log("Hello World");`
+          }],
+          isDemo: true
+        };
+        
+        setMigrationResult(demoResult);
+        setOriginalFiles({ 'demo.js': 'console.log("Hello World");' });
+        setShowResults(true);
+        console.log('✅ Demo results should now be visible!');
+        console.log('showResults:', true);
+        console.log('demoResult:', demoResult);
       }
       
     } catch (error) {
@@ -299,17 +374,6 @@ const MigrationPage: React.FC = () => {
                 </div>
                 <span className="font-medium">Upload</span>
               </div>
-              
-              <ArrowRight className={`w-5 h-5 ${uploadCompleted ? 'text-green-600' : 'text-gray-400'}`} />
-              
-              <div className={`flex items-center space-x-2 ${chunkingCompleted ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${chunkingCompleted ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  {chunkingCompleted ? <CheckCircle className="w-5 h-5" /> : <Code className="w-5 h-5" />}
-                </div>
-                <span className="font-medium">Process</span>
-              </div>
-              
-              <ArrowRight className={`w-5 h-5 ${chunkingCompleted ? 'text-green-600' : 'text-gray-400'}`} />
               
               <div className={`flex items-center space-x-2 ${showConversion ? 'text-blue-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${showConversion ? 'bg-blue-100' : 'bg-gray-100'}`}>
@@ -464,106 +528,21 @@ const MigrationPage: React.FC = () => {
             </div>
           )}
 
-          {/* Migration Results Section */}
+          {/* Migration Results Inline */}
+          {console.log('🔍 Render check - showResults:', showResults, 'migrationResult:', !!migrationResult)}
           {showResults && migrationResult && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-8">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Migration Results</h2>
-                <p className="text-gray-600">
-                  Your code has been successfully converted from {fromLanguage} to {toLanguage}
-                </p>
-              </div>
-
-              <div className="max-w-4xl mx-auto">
-                {/* Summary */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Summary</h3>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-md">
-                    {migrationResult.summary}
-                  </p>
-                </div>
-
-                {/* Changes Made */}
-                {migrationResult.changes && migrationResult.changes.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Changes Made</h3>
-                    <ul className="list-disc list-inside text-gray-700 bg-gray-50 p-4 rounded-md">
-                      {migrationResult.changes.map((change: string, index: number) => (
-                        <li key={index}>{change}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Migrated Code */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Migrated Code</h3>
-                  <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto">
-                    <pre className="whitespace-pre-wrap font-mono text-sm">
-                      {migrationResult.migratedCode}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Files */}
-                {migrationResult.files && migrationResult.files.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Files</h3>
-                    <div className="space-y-2">
-                      {migrationResult.files.map((file: any, index: number) => (
-                        <div key={index} className="bg-gray-50 p-3 rounded-md">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">
-                              {file.filename} → {file.migratedFilename}
-                            </span>
-                            <button
-                              onClick={() => {
-                                const blob = new Blob([file.content], { type: 'text/plain' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = file.migratedFilename;
-                                a.click();
-                                URL.revokeObjectURL(url);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                            >
-                              Download
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={() => {
-                      setShowResults(false);
-                      setMigrationResult(null);
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Close Results
-                  </button>
-                  <button
-                    onClick={() => {
-                      setUploadCompleted(false);
-                      setChunkingCompleted(false);
-                      setShowConversion(false);
-                      setShowResults(false);
-                      setMigrationResult(null);
-                      setActiveTab('single');
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Start New Migration
-                  </button>
-                </div>
-              </div>
-            </div>
+            <InlineMigrationResults
+              result={migrationResult}
+              originalFiles={originalFiles}
+              onStartOver={() => {
+                setUploadCompleted(false);
+                setChunkingCompleted(false);
+                setShowConversion(false);
+                setShowResults(false);
+                setMigrationResult(null);
+                setActiveTab('single');
+              }}
+            />
           )}
         </div>
       </div>

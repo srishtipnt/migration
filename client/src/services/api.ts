@@ -230,10 +230,21 @@ class ApiService {
   }
 
   async processMigrationWithLanguages(sessionId: string, fromLang: string, toLang: string) {
-    const response = await this.client.post(`/migrate/test/${sessionId}`, {
+    console.log('🚀 API Call: processMigrationWithLanguages');
+    console.log('  - sessionId:', sessionId);
+    console.log('  - fromLang:', fromLang);
+    console.log('  - toLang:', toLang);
+    console.log('  - endpoint:', `/migrate/test/${sessionId}`);
+    
+    const response = await this.client.post(`/migrate/test/${sessionId}?t=${Date.now()}`, {
       fromLang,
       toLang
     });
+    
+    console.log('📥 API Response:', response.data);
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', response.headers);
+    console.log('📥 Full response:', response);
     return response.data;
   }
 
@@ -244,6 +255,11 @@ class ApiService {
 
   async getSessionChunks(sessionId: string) {
     const response = await this.client.get(`/migrate/sessions/${sessionId}/chunks`);
+    return response.data;
+  }
+
+  async getOriginalFiles(sessionId: string) {
+    const response = await this.client.get(`/migrate/original-files/${sessionId}`);
     return response.data;
   }
 }

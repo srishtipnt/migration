@@ -158,7 +158,7 @@ router.post('/test/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { fromLang, toLang } = req.body;
-    const userId = '68d6a0caedcd958a1de3d682'; // Hardcoded for testing
+    const userId = '68d6a0caedcd958a1de3d682'; // Hardcoded for testing - matches the user with chunks
 
     console.log(`🧪 Test migration for session: ${sessionId}`);
 
@@ -194,6 +194,49 @@ router.post('/test/:sessionId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Test migration failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/migrate/original-files/:sessionId
+ * Get original file contents for diff viewing
+ */
+router.get('/original-files/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = '68d6a0caedcd958a1de3d682'; // Hardcoded for testing
+
+    console.log(`📁 Fetching original files for session: ${sessionId}`);
+
+    // Get chunks for this session
+    const CodeChunk = (await import('../models/CodeChunk.js')).default;
+    const chunks = await CodeChunk.find({ 
+      sessionId: sessionId,
+      userId: userId 
+    }).lean();
+
+    // Group chunks by filename
+    const filesMap = {};
+    chunks.forEach(chunk => {
+      const filename = chunk.fileName || chunk.filename || 'unknown.js';
+      if (!filesMap[filename]) {
+        filesMap[filename] = '';
+      }
+      // Concatenate all chunks for the same file
+      filesMap[filename] += chunk.content + '\n';
+    });
+
+    res.json({
+      success: true,
+      data: filesMap
+    });
+  } catch (error) {
+    console.error('❌ Error fetching original files:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch original files',
       message: error.message
     });
   }
