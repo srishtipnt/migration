@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { 
   Archive, 
-  Upload, 
   X, 
   CheckCircle, 
   AlertCircle, 
@@ -11,11 +10,12 @@ import {
   Eye,
   Trash2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import apiService from '../services/api';
 
 interface ZipUploadProps {
-  onZipUpload: (file: File) => void;
+  onZipUpload: (file: File, abortController: AbortController) => void;
   onClearZip: () => void;
 }
 
@@ -41,7 +41,9 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
   const [zipInfo, setZipInfo] = useState<ZipFileInfo | null>(null);
   const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInProgressRef = useRef<boolean>(false); // Prevent duplicate uploads
 
   // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -58,18 +60,68 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
     e.preventDefault();
     setIsDragOver(false);
     
+    // Clear any previous errors
+    setError(null);
+    
     const files = Array.from(e.dataTransfer.files);
     const zipFile = files.find(file => file.name.toLowerCase().endsWith('.zip'));
+    
+    // Check if any non-ZIP files were dropped
+    const nonZipFiles = files.filter(file => !file.name.toLowerCase().endsWith('.zip'));
+    if (nonZipFiles.length > 0) {
+      toast.error('Only ZIP files are allowed in ZIP upload. Please use the single file upload section for individual files.');
+      setError('Only ZIP files are allowed in ZIP upload. Please use the single file upload section for individual files.');
+      return;
+    }
     
     if (zipFile) {
       handleZipFileSelect(zipFile);
     }
   }, []);
 
+  // Handle auto-upload after ZIP processing
+  const handleAutoUpload = useCallback(async (file: File) => {
+    // Prevent duplicate uploads
+    if (uploadInProgressRef.current) {
+      console.log('🚫 Upload already in progress, skipping duplicate call');
+      return;
+    }
+    
+    uploadInProgressRef.current = true;
+    
+    try {
+      console.log('🚀 Processing ZIP file:', file.name);
+      
+      // Create AbortController BEFORE calling parent handler
+      const abortController = new AbortController();
+      console.log('🎛️ Created AbortController for ZIP upload:', file.name);
+      
+      // Call the parent handler with the AbortController
+      await onZipUpload(file, abortController);
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('🚫 ZIP upload cancelled:', file.name);
+        alert('ZIP upload was cancelled');
+      } else {
+        console.error('❌ ZIP processing failed:', error);
+        alert(`ZIP processing failed: ${error.message}`);
+      }
+    } finally {
+      uploadInProgressRef.current = false;
+    }
+  }, [onZipUpload]);
+
   // Handle ZIP file selection
   const handleZipFileSelect = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.zip')) {
       alert('Please select a ZIP file');
+      return;
+    }
+
+    // Prevent duplicate processing
+    if (uploadInProgressRef.current) {
+      console.log('🚫 Upload already in progress, skipping duplicate file selection');
       return;
     }
 
@@ -82,13 +134,16 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
       setZipInfo(zipInfo);
       setExtractedFiles(zipInfo.files || []);
       setShowPreview(true);
+      
+      // Auto-upload the ZIP file after processing
+      await handleAutoUpload(file);
     } catch (error) {
       console.error('Error processing ZIP file:', error);
       alert('Error processing ZIP file. Please try again.');
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [handleAutoUpload]);
 
   // Extract ZIP file information
   const extractZipInfo = async (file: File): Promise<ZipFileInfo> => {
@@ -200,8 +255,23 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
 
   // Handle file input change
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear any previous errors
+    setError(null);
+    
     const files = Array.from(e.target.files || []);
     const zipFile = files.find(file => file.name.toLowerCase().endsWith('.zip'));
+    
+    // Check if any non-ZIP files were selected
+    const nonZipFiles = files.filter(file => !file.name.toLowerCase().endsWith('.zip'));
+    if (nonZipFiles.length > 0) {
+      toast.error('Only ZIP files are allowed in ZIP upload. Please use the single file upload section for individual files.');
+      setError('Only ZIP files are allowed in ZIP upload. Please use the single file upload section for individual files.');
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
     
     if (zipFile) {
       handleZipFileSelect(zipFile);
@@ -213,44 +283,13 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
     }
   }, [handleZipFileSelect]);
 
-  // Handle upload
-  const handleUpload = useCallback(async () => {
-    if (zipFile) {
-      try {
-        setIsUploading(true);
-        console.log('🚀 Uploading ZIP to Cloudinary:', zipFile.name);
-        
-        const response = await apiService.uploadZipToCloudinary(zipFile);
-        
-        if (response.success) {
-          console.log('✅ ZIP uploaded successfully to Cloudinary');
-          console.log('📊 Session ID:', response.data.sessionId);
-          console.log('📁 Files uploaded:', response.data.totalFiles);
-          console.log('📋 Folder structure:', response.data.folderStructure);
-          
-          // Call the parent handler with success info
-          await onZipUpload(zipFile);
-          
-          // Show success message
-          alert(`ZIP uploaded successfully! ${response.data.totalFiles} files uploaded to Cloudinary with structured storage.`);
-        } else {
-          throw new Error(response.message || 'Upload failed');
-        }
-      } catch (error) {
-        console.error('❌ ZIP upload failed:', error);
-        alert(`Upload failed: ${error.message}`);
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  }, [zipFile, onZipUpload]);
-
   // Handle clear
   const handleClear = useCallback(() => {
     setZipFile(null);
     setZipInfo(null);
     setExtractedFiles([]);
     setShowPreview(false);
+    uploadInProgressRef.current = false; // Reset upload flag
     onClearZip();
   }, [onClearZip]);
 
@@ -341,10 +380,10 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
           
           <div>
             <p className="text-lg font-medium text-gray-900">
-              {isUploading ? 'Processing ZIP file...' : 'Upload ZIP Archive'}
+              {isUploading ? 'Processing and uploading ZIP file...' : 'Upload ZIP Archive'}
             </p>
             <p className="text-sm text-gray-500">
-              Drag and drop a ZIP file here, or click to select
+              Drag and drop a ZIP file here, or click to select (auto-upload)
             </p>
           </div>
           
@@ -427,29 +466,33 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
             </div>
           )}
 
-          {/* Upload Button */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={handleUpload}
-              disabled={isUploading}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                isUploading
-                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                  : 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500'
-              }`}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading to Cloudinary...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload ZIP to Cloudinary
-                </>
-              )}
-            </button>
+          {/* Upload Status */}
+          <div className="mt-4 flex justify-center">
+            <div className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md bg-green-100 text-green-800">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              ZIP file uploaded automatically to Cloudinary
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Upload Error
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

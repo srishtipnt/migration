@@ -26,7 +26,13 @@ router.post('/upload',
 // Get user's files
 router.get('/', getUserFiles);
 
-// Get single file
+// Create ZIP archive of user's files
+router.get('/archive/zip', createZipArchive);
+
+// Get file statistics
+router.get('/stats/overview', getFileStats);
+
+// Get single file (must be after specific routes)
 router.get('/:id', getFile);
 
 // Download file
@@ -34,11 +40,5 @@ router.get('/:id/download', downloadFile);
 
 // Delete file
 router.delete('/:id', deleteFile);
-
-// Create ZIP archive of user's files
-router.get('/archive/zip', createZipArchive);
-
-// Get file statistics
-router.get('/stats/overview', getFileStats);
 
 export default router;

@@ -6,7 +6,10 @@ import {
   getZipSessionFiles,
   deleteZipSession,
   getUserCloudinaryFiles,
-  deleteAllUserFiles
+  deleteAllUserFiles,
+  cleanupOrphanedSession,
+  cleanupAllOrphanedFiles,
+  getChunkingStatus
 } from '../controllers/zipCloudinaryController.js';
 
 const router = express.Router();
@@ -57,5 +60,14 @@ router.delete('/session/:sessionId', deleteZipSession);
 
 // Delete all Cloudinary files for the authenticated user
 router.delete('/files/all', deleteAllUserFiles);
+
+// Cleanup orphaned files - delete files from current session when user abandons upload
+router.delete('/cleanup/session/:sessionId', cleanupOrphanedSession);
+
+// Cleanup orphaned files - delete all files from current user's incomplete sessions
+router.delete('/cleanup/orphaned', cleanupAllOrphanedFiles);
+
+// Check chunking status for a session
+router.get('/chunking-status/:sessionId', getChunkingStatus);
 
 export default router;

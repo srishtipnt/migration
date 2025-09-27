@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Upload, Archive, FileText, ChevronDown, ChevronRight } from 'lucide-react';
-import FileUpload from './FileUpload';
+import SingleFileCloudinaryUpload from './SingleFileCloudinaryUpload';
 import ZipUpload from './ZipUpload';
 
 interface UploadSectionProps {
-  onFileUpload: (files: File[]) => void;
-  onZipUpload: (file: File) => void;
+  onFileUpload: (file: File) => void;
+  onZipUpload: (file: File, abortController: AbortController) => void;
   onClearZip: () => void;
+  onTabChange?: (tab: UploadType) => void;
 }
 
 type UploadType = 'files' | 'zip';
@@ -14,23 +15,30 @@ type UploadType = 'files' | 'zip';
 const UploadSection: React.FC<UploadSectionProps> = ({ 
   onFileUpload, 
   onZipUpload, 
-  onClearZip 
+  onClearZip,
+  onTabChange
 }) => {
   const [activeTab, setActiveTab] = useState<UploadType>('files');
   const [isExpanded, setIsExpanded] = useState(true);
 
+  // Handle tab change and notify parent
+  const handleTabChange = (tab: UploadType) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
+
   const tabs = [
     {
       id: 'files' as UploadType,
-      label: 'Individual Files',
+      label: 'Single File Upload',
       icon: FileText,
-      description: 'Upload individual code files'
+      description: 'Upload individual files to MongoDB and Cloudinary'
     },
     {
       id: 'zip' as UploadType,
-      label: 'ZIP Archive',
+      label: 'Upload ZIP File',
       icon: Archive,
-      description: 'Upload a ZIP file with folder structure'
+      description: 'Upload a ZIP archive with preserved folder structure'
     }
   ];
 
@@ -46,7 +54,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Upload Files</h2>
-                <p className="text-sm text-gray-500">Choose how you want to upload your files</p>
+                <p className="text-sm text-gray-500">Choose between single file upload or ZIP archive upload</p>
               </div>
             </div>
             <button
@@ -71,7 +79,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeTab === tab.id
                         ? 'bg-white text-gray-900 shadow-sm'
@@ -102,7 +110,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           <div className="space-y-4">
             {activeTab === 'files' && (
               <div>
-                <FileUpload onUpload={onFileUpload} />
+                <SingleFileCloudinaryUpload onUpload={onFileUpload} />
               </div>
             )}
 
@@ -122,14 +130,15 @@ const UploadSection: React.FC<UploadSectionProps> = ({
             <ul className="text-sm text-blue-800 space-y-1">
               {activeTab === 'files' ? (
                 <>
-                  <li>• Supported formats: JS, TS, JSON, HTML, CSS, and more</li>
+                  <li>• Files are stored in both MongoDB (metadata) and Cloudinary (actual files)</li>
+                  <li>• Supported formats: JS, TS, JSON, HTML, CSS, images, and more</li>
                   <li>• You can upload multiple files at once</li>
-                  <li>• Files will be processed individually</li>
+                  <li>• Files are processed individually with Cloudinary integration</li>
                 </>
               ) : (
                 <>
-                  <li>• ZIP files uploaded directly to Cloudinary</li>
-                  <li>• Folder structure preserved for easy chunking</li>
+                  <li>• ZIP files uploaded directly to Cloudinary with structured storage</li>
+                  <li>• Folder structure preserved for easy organization</li>
                   <li>• Files organized by type and size for optimization</li>
                   <li>• Maximum file size: 100MB</li>
                 </>

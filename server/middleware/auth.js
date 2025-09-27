@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import FileStorage from '../models/FileStorage.js';
+import mongoose from 'mongoose';
 
 // Authenticate JWT token
 export const authenticateToken = async (req, res, next) => {
@@ -43,6 +44,22 @@ export const authenticateToken = async (req, res, next) => {
     // Verify token
     const jwtSecret = process.env.JWT_SECRET || 'development-secret-key';
     const decoded = jwt.verify(token, jwtSecret);
+
+    // Check if database is connected before querying
+    if (mongoose.connection.readyState !== 1) {
+      console.log('🔐 Database not connected, using development bypass');
+      req.user = {
+        id: decoded.userId || '507f1f77bcf86cd799439011',
+        email: 'dev@example.com',
+        username: 'devuser',
+        firstName: 'Dev',
+        lastName: 'User',
+        role: 'user',
+        isActive: true,
+        maxFileSize: 104857600 // 100MB
+      };
+      return next();
+    }
 
     // Get user from database
     const user = await User.findById(decoded.userId).select('-password');
@@ -100,9 +117,13 @@ export const optionalAuth = async (req, res, next) => {
     if (token) {
       const jwtSecret = process.env.JWT_SECRET || 'development-secret-key';
       const decoded = jwt.verify(token, jwtSecret);
-      const user = await User.findById(decoded.userId).select('-password');
-      if (user && user.isActive) {
-        req.user = user;
+      
+      // Check if database is connected before querying
+      if (mongoose.connection.readyState === 1) {
+        const user = await User.findById(decoded.userId).select('-password');
+        if (user && user.isActive) {
+          req.user = user;
+        }
       }
     }
 

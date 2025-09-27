@@ -11,10 +11,20 @@ import { fileURLToPath } from 'url';
 // Import database connection
 import connectDB from './config/database.js';
 
+// Import background job processor
+import JobProcessorService from './services/JobProcessorService.js';
+
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import zipCloudinaryRoutes from './routes/zipCloudinaryRoutes.js';
+import singleFileCloudinaryRoutes from './routes/singleFileCloudinaryRoutes.js';
+import migrationJobRoutes from './routes/migrationJobRoutes.js';
+import testRoutes from './routes/testRoutes.js';
+import forceChunkingRoutes from './routes/forceChunkingRoutes.js';
+import autoChunkingRoutes from './routes/autoChunkingRoutes.js';
+import migrationRoutes from './routes/migrationRoutes.js';
+import saveMigrationRoutes from './routes/saveMigrationRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -93,6 +103,13 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/zip-cloudinary', zipCloudinaryRoutes);
+app.use('/api/single-file-cloudinary', singleFileCloudinaryRoutes);
+app.use('/api/migration-jobs', migrationJobRoutes);
+app.use('/api/test', testRoutes);
+app.use('/api/force-chunking', forceChunkingRoutes);
+app.use('/api/auto-chunking', autoChunkingRoutes);
+app.use('/api/migrate', migrationRoutes);
+app.use('/api/save-migration', saveMigrationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -167,17 +184,32 @@ app.use((error, req, res, next) => {
 // Start server
 const PORT = 3000;
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`📁 Upload directory: ${process.env.UPLOAD_PATH || './uploads'}`);
   console.log(`🗄️  Database: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/migration-service'}`);
   console.log(`🔧 Debug mode: Enhanced logging enabled`);
-  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary`);
+  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/test, /api/force-chunking, /api/auto-chunking`);
+  
+  // Start background job processor
+  try {
+    console.log(`🔄 Starting background job processor...`);
+    jobProcessorInstance = new JobProcessorService();
+    await jobProcessorInstance.start();
+    console.log(`✅ Background job processor started successfully`);
+  } catch (error) {
+    console.error(`❌ Failed to start background job processor:`, error);
+  }
 });
 
 // Graceful shutdown
+let jobProcessorInstance = null;
+
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
+  if (jobProcessorInstance) {
+    jobProcessorInstance.shutdown();
+  }
   server.close(() => {
     console.log('Process terminated');
     process.exit(0);
@@ -186,6 +218,9 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('SIGINT received. Shutting down gracefully...');
+  if (jobProcessorInstance) {
+    jobProcessorInstance.shutdown();
+  }
   server.close(() => {
     console.log('Process terminated');
     process.exit(0);

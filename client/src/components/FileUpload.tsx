@@ -159,7 +159,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
           
           <div>
             <p className="text-lg font-medium text-gray-900">
-              {isUploading ? 'Uploading files...' : 'Upload files'}
+              {isUploading ? 'Uploading files...' : 'Upload Single Files'}
             </p>
             <p className="text-sm text-gray-500">
               Drag and drop files here, or click to select files
@@ -167,7 +167,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
           </div>
           
           <div className="text-xs text-gray-400">
-            Supports: JS, TS, JSON, HTML, CSS, ZIP, and more
+            Supports: JS, TS, JSON, HTML, CSS, images, documents, and more
           </div>
         </div>
       </div>

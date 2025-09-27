@@ -14,6 +14,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { NavItem } from '../types';
+import cleanupService from '../services/cleanupService';
 
 interface NavbarProps {
   user?: {
@@ -59,6 +60,29 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     setIsUserMenuOpen(false);
     onLogout?.();
   };
+
+  // Cleanup effect - trigger cleanup when navigating away from migrate page
+  useEffect(() => {
+    const handleNavigation = async () => {
+      // Check if we're navigating away from the migrate page
+      if (location.pathname !== '/migrate') {
+        const stats = cleanupService.getStats();
+        if (stats.totalSessions > 0) {
+          console.log(`🧹 Navigating away from migrate page - cleaning up ${stats.totalSessions} sessions`);
+          try {
+            // Wait for cleanup to complete before allowing navigation
+            const result = await cleanupService.cleanupOnAppNavigation();
+            console.log(`🧹 Navigation cleanup completed: ${result.success} success, ${result.failed} failed`);
+          } catch (error) {
+            console.error('Failed to cleanup on navigation:', error);
+          }
+        }
+      }
+    };
+
+    // Trigger cleanup when location changes
+    handleNavigation();
+  }, [location.pathname]);
 
   return (
     <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm sticky top-0 z-50">

@@ -18,6 +18,18 @@ class ApiService {
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      
+      // Don't set Content-Type for FormData - let browser set it automatically
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
+      
+      // For development, if no token is present, don't send Authorization header
+      // This allows the server's localhost bypass to work
+      if (!token && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        delete config.headers.Authorization;
+      }
+      
       return config;
     });
 
@@ -25,6 +37,14 @@ class ApiService {
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
       (error: any) => {
+        console.error('API Error:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method
+        });
+        
         if (error.response?.status === 401) {
           this.logout();
         }
@@ -63,9 +83,7 @@ class ApiService {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     
-    const response = await this.client.post('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const response = await this.client.post('/files/upload', formData);
     return response.data;
   }
 
@@ -96,13 +114,12 @@ class ApiService {
   }
 
   // ZIP Cloudinary methods
-  async uploadZipToCloudinary(zipFile: File) {
+  async uploadZipToCloudinary(zipFile: File, abortController?: AbortController) {
     const formData = new FormData();
     formData.append('zipFile', zipFile);
     
-    const response = await this.client.post('/zip-cloudinary/upload-zip', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const config = abortController ? { signal: abortController.signal } : {};
+    const response = await this.client.post('/zip-cloudinary/upload-zip', formData, config);
     return response.data;
   }
 
@@ -118,6 +135,115 @@ class ApiService {
 
   async deleteZipSession(sessionId: string) {
     const response = await this.client.delete(`/zip-cloudinary/session/${sessionId}`);
+    return response.data;
+  }
+
+  // Single File Cloudinary methods
+  async uploadSingleFileToCloudinary(file: File, abortController?: AbortController) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const config = abortController ? { signal: abortController.signal } : {};
+    const response = await this.client.post('/single-file-cloudinary/upload', formData, config);
+    return response.data;
+  }
+
+  async getUserSingleFiles(params: any = {}) {
+    const response = await this.client.get('/single-file-cloudinary', { params });
+    return response.data;
+  }
+
+  async getSingleFile(fileId: string) {
+    const response = await this.client.get(`/single-file-cloudinary/${fileId}`);
+    return response.data;
+  }
+
+  async downloadSingleFile(fileId: string) {
+    const response = await this.client.get(`/single-file-cloudinary/${fileId}/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+
+  async deleteSingleFile(fileId: string) {
+    const response = await this.client.delete(`/single-file-cloudinary/${fileId}`);
+    return response.data;
+  }
+
+  // Cleanup methods for orphaned files
+  async cleanupOrphanedSession(sessionId: string) {
+    const response = await this.client.delete(`/zip-cloudinary/cleanup/session/${sessionId}`);
+    return response.data;
+  }
+
+  async cleanupAllOrphanedFiles(olderThanHours: number = 1) {
+    const response = await this.client.delete(`/zip-cloudinary/cleanup/orphaned?olderThanHours=${olderThanHours}`);
+    return response.data;
+  }
+
+  async cleanupOrphanedSingleFiles(olderThanMinutes: number = 30) {
+    const response = await this.client.delete(`/single-file-cloudinary/cleanup/orphaned?olderThanMinutes=${olderThanMinutes}`);
+    return response.data;
+  }
+
+  // Migration Job methods
+  async getMigrationJobs(params: any = {}) {
+    const response = await this.client.get('/migration-jobs/jobs', { params });
+    return response.data;
+  }
+
+  async getJobStatus(sessionId: string) {
+    const response = await this.client.get(`/migration-jobs/status/${sessionId}`);
+    return response.data;
+  }
+
+  async getMigrationJob(jobId: string) {
+    const response = await this.client.get(`/migration-jobs/job/${jobId}`);
+    return response.data;
+  }
+
+  async getJobChunks(sessionId: string, params: any = {}) {
+    const response = await this.client.get(`/migration-jobs/chunks/${sessionId}`, { params });
+    return response.data;
+  }
+
+  async searchCodeChunks(query: string, sessionId?: string) {
+    const response = await this.client.post('/migration-jobs/search', {
+      query,
+      sessionId,
+      limit: 20
+    });
+    return response.data;
+  }
+
+  async deleteMigrationJob(sessionId: string) {
+    const response = await this.client.delete(`/migration-jobs/${sessionId}`);
+    return response.data;
+  }
+
+  // Migration Agent methods
+  async processMigration(sessionId: string, command: string) {
+    const response = await this.client.post(`/migrate/${sessionId}`, {
+      command
+    });
+    return response.data;
+  }
+
+  async processMigrationWithLanguages(sessionId: string, fromLang: string, toLang: string) {
+    const response = await this.client.post(`/migrate/test/${sessionId}`, {
+      fromLang,
+      toLang
+    });
+    return response.data;
+  }
+
+  async testMigrationAgent() {
+    const response = await this.client.get('/migrate/test');
+    return response.data;
+  }
+
+  async getSessionChunks(sessionId: string) {
+    const response = await this.client.get(`/migrate/sessions/${sessionId}/chunks`);
     return response.data;
   }
 }

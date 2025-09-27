@@ -7,6 +7,11 @@ import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import { isZipFile, getMimeTypeFromExtension } from '../utils/zipUtils.js';
 import FileStorage from '../models/FileStorage.js';
+import MigrationJob from '../models/MigrationJob.js';
+import CodeChunk from '../models/CodeChunk.js';
+import GeminiEmbeddingService from '../services/GeminiEmbeddingService.js';
+import ASTParsingService from '../services/ASTParsingService.js';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -20,6 +25,133 @@ cloudinary.config({
 
 console.log('☁️  Cloudinary ZIP Controller configured');
 console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || 'dwpj1cr3e');
+
+/**
+ * Trigger automatic chunking for uploaded files
+ */
+export async function triggerAutomaticChunking(sessionId, userId, jobId) {
+  try {
+    console.log(`🚀 Starting automatic chunking for session: ${sessionId}`);
+    
+    // Update job status to processing
+    const job = await MigrationJob.findById(jobId);
+    if (job) {
+      await job.updateStatus('processing');
+    }
+    
+    // Get files for this session
+    const files = await FileStorage.find({ sessionId, userId });
+    console.log(`📄 Found ${files.length} files to process`);
+    
+    if (files.length === 0) {
+      console.log('⚠️ No files found for chunking');
+      return;
+    }
+    
+    // Create workspace
+    const workspacePath = path.join(process.cwd(), 'temp-workspaces', `auto-${sessionId}`);
+    await fs.ensureDir(workspacePath);
+    console.log(`📁 Created workspace: ${workspacePath}`);
+    
+    // Download files using direct URLs
+    let downloadedFiles = 0;
+    for (const file of files) {
+      try {
+        console.log(`📥 Downloading: ${file.originalFilename}`);
+        
+        const response = await axios.get(file.secure_url, {
+          responseType: 'text',
+          timeout: 30000
+        });
+        
+        const filePath = path.join(workspacePath, file.originalFilename);
+        const fileDir = path.dirname(filePath);
+        await fs.ensureDir(fileDir);
+        
+        await fs.writeFile(filePath, response.data, 'utf8');
+        downloadedFiles++;
+        
+        console.log(`✅ Downloaded: ${file.originalFilename}`);
+      } catch (error) {
+        console.error(`❌ Failed to download ${file.originalFilename}:`, error.message);
+      }
+    }
+    
+    console.log(`📊 Downloaded ${downloadedFiles}/${files.length} files`);
+    
+    // Process files and create chunks
+    const chunks = [];
+    const entries = await fs.readdir(workspacePath, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const fullPath = path.join(workspacePath, entry.name);
+        const extension = path.extname(entry.name).toLowerCase();
+        
+        if (isCodeFile(extension)) {
+          try {
+            console.log(`🌳 Parsing: ${entry.name}`);
+            const fileChunks = await ASTParsingService.parseFile(fullPath, entry.name, extension);
+            chunks.push(...fileChunks);
+            console.log(`✅ Parsed ${entry.name}: ${fileChunks.length} chunks`);
+          } catch (error) {
+            console.error(`❌ Error parsing ${entry.name}:`, error.message);
+          }
+        }
+      }
+    }
+    
+    console.log(`🌳 Total chunks: ${chunks.length}`);
+    
+    // Generate embeddings
+    console.log(`🧠 Generating embeddings...`);
+    const chunksWithEmbeddings = await GeminiEmbeddingService.generateEmbeddings(chunks);
+    
+    // Save chunks
+    console.log(`💾 Saving chunks to database...`);
+    let savedChunks = 0;
+    for (const chunk of chunksWithEmbeddings) {
+      try {
+        await CodeChunk.createChunk({
+          jobId: jobId,
+          sessionId: sessionId,
+          userId: userId,
+          ...chunk
+        });
+        savedChunks++;
+      } catch (error) {
+        console.error(`❌ Failed to save chunk:`, error.message);
+      }
+    }
+    
+    console.log(`💾 Saved ${savedChunks} chunks to database`);
+    
+    // Update job progress and status
+    if (job) {
+      await job.updateProgress(files.length, savedChunks);
+      await job.updateStatus('ready');
+    }
+    
+    // Cleanup
+    await fs.remove(workspacePath);
+    
+    console.log(`✅ Automatic chunking completed: ${files.length} files → ${savedChunks} chunks`);
+    
+  } catch (error) {
+    console.error('❌ Automatic chunking failed:', error);
+    // Update job status to failed
+    const job = await MigrationJob.findById(jobId);
+    if (job) {
+      await job.updateStatus('failed', error.message);
+    }
+    throw error;
+  }
+}
+
+function isCodeFile(extension) {
+  const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala'];
+  return codeExtensions.includes(extension);
+}
 
 /**
  * Upload ZIP file to Cloudinary with structured storage for easy chunking
@@ -46,10 +178,21 @@ export const uploadZipToCloudinary = async (req, res) => {
 
     // Check if the uploaded file is actually a ZIP file
     if (!isZipFile(zipFile.originalname, zipFile.mimetype)) {
+      const fileExtension = path.extname(zipFile.originalname).toLowerCase();
+      const isSingleFile = !fileExtension || fileExtension !== '.zip';
+      
+      let errorMessage = 'Please upload a ZIP file';
+      if (isSingleFile) {
+        errorMessage = 'Single files are not allowed in ZIP upload. Please use the single file upload section instead.';
+      }
+      
       return res.status(400).json({
         success: false,
-        error: 'Invalid file type',
-        message: 'Please upload a ZIP file'
+        error: 'Invalid file type for ZIP upload',
+        message: errorMessage,
+        receivedFileType: fileExtension,
+        receivedMimeType: zipFile.mimetype,
+        suggestion: isSingleFile ? 'Use single file upload section' : 'Upload a valid ZIP file'
       });
     }
 
@@ -93,6 +236,7 @@ export const uploadZipToCloudinary = async (req, res) => {
           folderStructure[folderPath] = {
             type: 'folder',
             path: folderPath,
+            files: [], // Initialize files array
             createdAt: new Date().toISOString()
           };
         }
@@ -254,12 +398,21 @@ export const uploadZipToCloudinary = async (req, res) => {
 
         // Track folder structure
         if (folderPath) {
-          folderStructure[folderPath] = folderStructure[folderPath] || {
-            type: 'folder',
-            path: folderPath,
-            files: [],
-            createdAt: new Date().toISOString()
-          };
+          // Ensure folder structure is properly initialized
+          if (!folderStructure[folderPath]) {
+            folderStructure[folderPath] = {
+              type: 'folder',
+              path: folderPath,
+              files: [],
+              createdAt: new Date().toISOString()
+            };
+          }
+          
+          // Ensure files array exists before pushing
+          if (!folderStructure[folderPath].files) {
+            folderStructure[folderPath].files = [];
+          }
+          
           folderStructure[folderPath].files.push({
             name: fileName,
             type: fileType,
@@ -278,6 +431,29 @@ export const uploadZipToCloudinary = async (req, res) => {
         });
         processingStats.skippedFiles++;
       }
+    }
+
+    // Upload the ZIP file itself to Cloudinary for background processing
+    let zipCloudinaryResult = null;
+    try {
+      console.log(`📦 Uploading ZIP file to Cloudinary for background processing...`);
+      zipCloudinaryResult = await cloudinary.uploader.upload(zipFile.path, {
+        folder: zipBasePath,
+        resource_type: 'raw',
+        public_id: `zip-${sessionId}`,
+        use_filename: false,
+        unique_filename: false,
+        tags: [
+          `user:${userId}`,
+          `session:${sessionId}`,
+          `type:zip-file`,
+          `original:${zipFile.originalname}`
+        ]
+      });
+      console.log(`✅ ZIP file uploaded to Cloudinary: ${zipCloudinaryResult.public_id}`);
+    } catch (zipUploadError) {
+      console.error(`❌ Failed to upload ZIP file to Cloudinary:`, zipUploadError);
+      // Don't fail the entire upload if ZIP upload fails
     }
 
     // Clean up temporary ZIP file
@@ -316,9 +492,42 @@ export const uploadZipToCloudinary = async (req, res) => {
       });
     }
 
+    // Create migration job for background processing (only if ZIP upload succeeded)
+    if (zipCloudinaryResult) {
+      try {
+        console.log(`🔄 Creating migration job for session: ${sessionId}`);
+        
+        const zipFileInfo = {
+          public_id: zipCloudinaryResult.public_id,
+          secure_url: zipCloudinaryResult.secure_url,
+          originalName: zipFile.originalname,
+          size: zipFile.size
+        };
+
+        const migrationJob = await MigrationJob.createJob(
+          sessionId,
+          userId,
+          zipFileInfo,
+          processingStats.processedFiles
+        );
+
+        console.log(`✅ Migration job created: ${migrationJob._id}`);
+        console.log(`📦 ZIP file URL: ${zipCloudinaryResult.secure_url}`);
+        
+        // Do NOT trigger inline chunking here.
+        // BackgroundJobProcessor will pick up the job and process it to avoid duplicates.
+        console.log(`🕒 Chunking will be handled by the background processor for session: ${sessionId}`);
+      } catch (jobError) {
+        console.error(`❌ Failed to create migration job:`, jobError);
+        // Don't fail the entire upload if job creation fails
+      }
+    } else {
+      console.log(`⚠️  Skipping migration job creation: ZIP file upload failed`);
+    }
+
     res.status(201).json({
       success: true,
-      message: `ZIP file processed successfully. ${processingStats.processedFiles} files uploaded to Cloudinary and saved to database.`,
+      message: `ZIP file processed successfully. ${processingStats.processedFiles} files uploaded to Cloudinary and saved to database. Semantic chunking is running in the background.`,
       data: {
         sessionId: sessionId,
         zipFileName: zipFile.originalname,
@@ -340,7 +549,8 @@ export const uploadZipToCloudinary = async (req, res) => {
         totalSize: uploadedFiles.reduce((sum, file) => sum + (file.fileSize || 0), 0),
         folderStructure: folderStructure,
         sessionMetadata: sessionMetadata,
-        processingStats: processingStats
+        processingStats: processingStats,
+        chunkingStatus: 'processing' // Indicate that chunking is happening in background
       }
     });
 
@@ -407,6 +617,21 @@ export const getUserCloudinaryFiles = async (req, res) => {
 
     res.json({
       success: true,
+      files: files.map(file => ({
+        id: file._id,
+        originalFilename: file.originalName,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        uploadedAt: file.uploadedAt,
+        folderPath: file.folderPath,
+        relativePath: file.relativePath,
+        storageType: file.storageType,
+        public_id: file.cloudinaryPublicId,
+        secure_url: file.cloudinaryUrl,
+        sessionId: file.sessionId,
+        zipFileName: file.zipFileName
+      })),
       data: {
         sessions: Object.values(sessions),
         totalSessions: Object.keys(sessions).length,
@@ -778,6 +1003,283 @@ export const deleteAllUserFiles = async (req, res) => {
       success: false,
       error: 'Deletion failed',
       message: 'An error occurred while deleting user files'
+    });
+  }
+};
+
+/**
+ * Cleanup orphaned session files - delete files from a specific session when user abandons upload
+ */
+export const cleanupOrphanedSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🧹 Cleaning up orphaned session: ${sessionId} for user: ${userId}`);
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID required',
+        message: 'Please provide a session ID'
+      });
+    }
+
+    // Get files from database for this session
+    const files = await FileStorage.findCloudinaryFilesBySession(sessionId);
+
+    if (files.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No orphaned files found for this session',
+        deletedCount: 0
+      });
+    }
+
+    // Extract public IDs for Cloudinary deletion
+    const publicIds = files
+      .filter(file => file.public_id)
+      .map(file => file.public_id);
+
+    console.log(`🧹 Found ${files.length} orphaned files in session: ${sessionId}`);
+    console.log(`🧹 Public IDs to delete:`, publicIds);
+
+    // Delete from Cloudinary if we have public IDs
+    let cloudinaryDeleteResult = null;
+    if (publicIds.length > 0) {
+      try {
+        cloudinaryDeleteResult = await cloudinary.api.delete_resources(publicIds, {
+          resource_type: 'raw'
+        });
+        console.log(`✅ Cloudinary cleanup result:`, cloudinaryDeleteResult);
+      } catch (cloudinaryError) {
+        console.error(`❌ Cloudinary cleanup error:`, cloudinaryError);
+        // Continue with database deletion even if Cloudinary fails
+      }
+    }
+
+    // Delete files from database
+    const deleteResult = await FileStorage.deleteMany({ 
+      sessionId: sessionId, 
+      userId: userId,
+      storageType: 'cloudinary'
+    });
+
+    console.log(`🧹 Deleted ${deleteResult.deletedCount} orphaned files from database`);
+
+    // Also delete any code chunks created for this abandoned session
+    const chunkDeleteResult = await CodeChunk.deleteMany({
+      sessionId: sessionId,
+      userId: userId
+    });
+    console.log(`🧹 Deleted ${chunkDeleteResult.deletedCount} code chunks for session: ${sessionId}`);
+
+    res.json({
+      success: true,
+      message: `Successfully cleaned up ${deleteResult.deletedCount} orphaned files from session ${sessionId}`,
+      deletedCount: deleteResult.deletedCount,
+      cloudinaryResult: cloudinaryDeleteResult,
+      details: {
+        databaseDeleted: deleteResult.deletedCount,
+        cloudinaryDeleted: cloudinaryDeleteResult?.deleted?.length || 0,
+        cloudinaryNotFound: cloudinaryDeleteResult?.not_found?.length || 0,
+        chunksDeleted: chunkDeleteResult.deletedCount
+      },
+      cleanedFiles: files.map(file => ({
+        id: file._id,
+        originalFilename: file.originalFilename,
+        public_id: file.public_id,
+        secure_url: file.secure_url
+      }))
+    });
+
+  } catch (error) {
+    console.error('Cleanup orphaned session error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Cleanup failed',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Cleanup all orphaned files - delete files from incomplete sessions older than 1 hour
+ */
+export const cleanupAllOrphanedFiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { olderThanHours = 1 } = req.query;
+
+    console.log(`🧹 Cleaning up all orphaned files for user: ${userId} (older than ${olderThanHours} hours)`);
+
+    // Calculate cutoff time
+    const cutoffTime = new Date(Date.now() - (olderThanHours * 60 * 60 * 1000));
+
+    // Find orphaned files (files from incomplete sessions older than cutoff)
+    const orphanedFiles = await FileStorage.find({
+      userId: userId,
+      storageType: 'cloudinary',
+      uploadedAt: { $lt: cutoffTime },
+      // Add any additional criteria to identify orphaned files
+      // For example, files without a "committed" flag or from abandoned sessions
+    });
+
+    if (orphanedFiles.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No orphaned files found',
+        deletedCount: 0
+      });
+    }
+
+    // Extract public IDs for Cloudinary deletion
+    const publicIds = orphanedFiles
+      .filter(file => file.public_id)
+      .map(file => file.public_id);
+
+    console.log(`🧹 Found ${orphanedFiles.length} orphaned files`);
+    console.log(`🧹 Public IDs to delete:`, publicIds);
+
+    // Delete from Cloudinary in batches
+    let cloudinaryDeleteResult = null;
+    if (publicIds.length > 0) {
+      try {
+        const batchSize = 100;
+        const batches = [];
+        for (let i = 0; i < publicIds.length; i += batchSize) {
+          batches.push(publicIds.slice(i, i + batchSize));
+        }
+
+        console.log(`🧹 Deleting ${publicIds.length} orphaned files in ${batches.length} batches`);
+
+        const batchResults = [];
+        for (const batch of batches) {
+          try {
+            const result = await cloudinary.api.delete_resources(batch, {
+              resource_type: 'raw'
+            });
+            batchResults.push(result);
+            console.log(`✅ Batch cleanup completed: ${batch.length} files`);
+          } catch (batchError) {
+            console.error(`❌ Batch cleanup error:`, batchError);
+            batchResults.push({ error: batchError.message });
+          }
+        }
+
+        // Combine results
+        cloudinaryDeleteResult = {
+          batches: batchResults,
+          totalDeleted: batchResults.reduce((sum, result) => sum + (result.deleted?.length || 0), 0),
+          totalNotFound: batchResults.reduce((sum, result) => sum + (result.not_found?.length || 0), 0)
+        };
+
+        console.log(`✅ Cloudinary cleanup completed:`, cloudinaryDeleteResult);
+      } catch (cloudinaryError) {
+        console.error(`❌ Cloudinary cleanup error:`, cloudinaryError);
+        // Continue with database deletion even if Cloudinary fails
+      }
+    }
+
+    // Delete files from database
+    const deleteResult = await FileStorage.deleteMany({ 
+      userId: userId,
+      storageType: 'cloudinary',
+      uploadedAt: { $lt: cutoffTime }
+    });
+
+    console.log(`🧹 Deleted ${deleteResult.deletedCount} orphaned files from database`);
+
+    // Also delete code chunks for those sessions (best-effort)
+    const orphanedSessionIds = [...new Set(orphanedFiles.map(f => f.sessionId).filter(Boolean))];
+    let chunksDeletedTotal = 0;
+    if (orphanedSessionIds.length > 0) {
+      const chunkDeleteResult = await CodeChunk.deleteMany({
+        userId: userId,
+        sessionId: { $in: orphanedSessionIds }
+      });
+      chunksDeletedTotal = chunkDeleteResult.deletedCount || 0;
+      console.log(`🧹 Deleted ${chunksDeletedTotal} code chunks across ${orphanedSessionIds.length} sessions`);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully cleaned up ${deleteResult.deletedCount} orphaned files`,
+      deletedCount: deleteResult.deletedCount,
+      cloudinaryResult: cloudinaryDeleteResult,
+      details: {
+        databaseDeleted: deleteResult.deletedCount,
+        cloudinaryDeleted: cloudinaryDeleteResult?.totalDeleted || 0,
+        cloudinaryNotFound: cloudinaryDeleteResult?.totalNotFound || 0,
+        batchesProcessed: cloudinaryDeleteResult?.batches?.length || 0,
+        cutoffTime: cutoffTime.toISOString(),
+        chunksDeleted: chunksDeletedTotal
+      },
+      cleanedFiles: orphanedFiles.map(file => ({
+        id: file._id,
+        originalFilename: file.originalFilename,
+        sessionId: file.sessionId,
+        uploadedAt: file.uploadedAt,
+        public_id: file.public_id,
+        secure_url: file.secure_url
+      }))
+    });
+
+  } catch (error) {
+    console.error('Cleanup all orphaned files error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Cleanup failed',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get chunking status for a session
+ */
+export const getChunkingStatus = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🔍 Checking chunking status for session: ${sessionId}`);
+
+    // Find the migration job
+    const job = await MigrationJob.findOne({ sessionId, userId });
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found',
+        message: 'No migration job found for this session'
+      });
+    }
+
+    // Count chunks for this session
+    const chunkCount = await CodeChunk.countDocuments({ sessionId });
+
+    res.json({
+      success: true,
+      data: {
+        sessionId: sessionId,
+        jobStatus: job.status,
+        totalFiles: job.totalFiles,
+        totalChunks: job.totalChunks,
+        actualChunks: chunkCount,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        isComplete: job.status === 'ready',
+        isProcessing: job.status === 'processing',
+        isFailed: job.status === 'failed'
+      }
+    });
+
+  } catch (error) {
+    console.error('Get chunking status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get chunking status',
+      message: error.message
     });
   }
 };

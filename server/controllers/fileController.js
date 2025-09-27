@@ -2,11 +2,23 @@ import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
 import archiver from 'archiver';
-import { v4 as uuidv4 } from 'uuid';
 import { v2 as cloudinary } from 'cloudinary';
+import dotenv from 'dotenv';
 import FileStorage from '../models/FileStorage.js';
 import { generateFileName } from '../middleware/upload.js';
-import { isZipFile, extractZipFile, validateZipFile } from '../utils/zipUtils.js';
+
+// Load environment variables
+dotenv.config();
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dwpj1cr3e',
+  api_key: process.env.CLOUDINARY_API_KEY || '252216879214925',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'vQzTI2sfVrJTd1-g_Ff4vuSiMTY',
+  secure: true
+});
+
+console.log('📁 File Controller loaded with Cloudinary support');
 
 // Calculate file checksum
 const calculateChecksum = (filePath) => {
@@ -29,172 +41,148 @@ export const uploadFiles = async (req, res) => {
     }
 
     const uploadedFiles = [];
-    const extractionStats = {
-      zipFilesProcessed: 0,
-      filesExtracted: 0,
-      errors: [],
-      warnings: []
-    };
 
-    console.log(`📁 Starting file upload for user: ${userId}`);
-    console.log(`📊 Files to process: ${files.length}`);
+    console.log('📁 Starting file upload for user:', userId);
+    console.log('📊 Files to process:', files.length);
 
     for (const file of files) {
       try {
-        // Check if file is a ZIP archive
-        console.log(`🔍 Checking file: ${file.originalname}, mimeType: ${file.mimetype}`);
-        const isZip = isZipFile(file.originalname, file.mimetype);
-        console.log(`📦 Is ZIP file: ${isZip}`);
-        if (isZip) {
-          console.log(`📦 Processing ZIP file: ${file.originalname}`);
+        // Validate file type - prevent ZIP files in regular file upload
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+        const isZipFile = fileExtension === '.zip' || file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed';
+        
+        if (isZipFile) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid file type for regular file upload',
+            message: 'ZIP files are not allowed in regular file upload. Please use the ZIP upload section instead.',
+            receivedFileType: fileExtension,
+            receivedMimeType: file.mimetype
+          });
+        }
+        
+        // Process regular file
+        console.log('📁 Processing regular file:', file.originalname);
+        
+        const fileName = generateFileName(file.originalname);
+        const filePath = path.join(process.env.UPLOAD_PATH || './uploads', userId, fileName);
+        
+        // Ensure directory exists
+        await fs.ensureDir(path.dirname(filePath));
+        
+        // Move file to final location
+        await fs.move(file.path, filePath);
+
+        // Upload to Cloudinary with robust error handling
+        let cloudinaryResult = null;
+        try {
+          console.log('☁️  Uploading to Cloudinary:', file.originalname);
           
-          // Validate ZIP file
-          console.log('🔍 Validating ZIP file...');
-          const zipBuffer = await fs.readFile(file.path);
-          const zipValidation = await validateZipFile(zipBuffer);
-          console.log('📊 Validation result:', zipValidation);
-          if (!zipValidation.valid) {
-            extractionStats.errors.push({
-              file: file.originalname,
-              error: zipValidation.error
-            });
-            continue;
+          // Determine resource type based on file type
+          let resourceType = 'raw';
+          if (file.mimetype.startsWith('image/')) {
+            resourceType = 'image';
+          } else if (file.mimetype.startsWith('video/')) {
+            resourceType = 'video';
           }
 
-          // Extract ZIP file
-          console.log('🔍 Extracting ZIP file...');
-          const extractionResult = await extractZipFile(zipBuffer, { userId });
-          console.log('📊 Extraction result success:', extractionResult.success);
-          console.log('📊 Extraction result files count:', extractionResult.files ? extractionResult.files.length : 0);
-          if (extractionResult.error) {
-            console.log('📊 Extraction error:', extractionResult.error);
-          }
-          if (extractionResult.success) {
-            extractionStats.zipFilesProcessed++;
-            extractionStats.filesExtracted += extractionResult.files.length;
-            
-            console.log(`📦 Successfully extracted ${extractionResult.files.length} files from ZIP`);
-            
-            // Process extracted files
-            for (const extractedFile of extractionResult.files) {
-              // Create folder structure in uploads
-              const folderPath = extractedFile.folderPath || '';
-              const relativePath = extractedFile.relativePath || extractedFile.originalName;
-              
-              // Generate unique filename for storage while preserving structure
-              const fileName = generateFileName(extractedFile.originalName);
-              const fullFolderPath = path.join(process.env.UPLOAD_PATH || './uploads', userId, folderPath);
-              const filePath = path.join(fullFolderPath, fileName);
-              
-              // Ensure directory exists (including subfolders)
-              await fs.ensureDir(path.dirname(filePath));
-              
-              // Write file buffer to disk
-              await fs.writeFile(filePath, extractedFile.fileBuffer);
-              
-              const fileRecord = new FileStorage({
-                userId,
-                originalName: extractedFile.originalName,
-                fileName: fileName,
-                filePath: filePath,
-                fileSize: extractedFile.fileSize,
-                mimeType: extractedFile.mimeType,
-                checksum: extractedFile.checksum,
-                folderPath: folderPath,
-                relativePath: relativePath,
-                metadata: {
-                  extractedFrom: file.originalname,
-                  extractedAt: new Date(),
-                  ...extractedFile.metadata
-                }
-              });
+          // Generate unique Cloudinary path
+          const fileId = crypto.randomBytes(8).toString('hex');
+          const timestamp = Date.now();
+          const cloudinaryPath = `migrateapp/users/${userId}/files/${timestamp}_${fileId}`;
+          const userTag = `user-${userId}`;
 
-              try {
-                await fileRecord.save();
-                uploadedFiles.push(fileRecord);
-                console.log(`✅ Saved file: ${extractedFile.originalName}`);
-              } catch (saveError) {
-                console.error(`❌ Error saving file ${extractedFile.originalName}:`, saveError.message);
-                extractionStats.errors.push({
-                  file: extractedFile.originalName,
-                  error: saveError.message
-                });
-              }
-            }
-          } else {
-            extractionStats.errors.push({
-              file: file.originalname,
-              error: extractionResult.error
-            });
-          }
-        } else {
-          // Process regular file
-          const fileName = generateFileName(file.originalname);
-          const filePath = path.join(process.env.UPLOAD_PATH || './uploads', userId, fileName);
-          
-          // Ensure directory exists
-          await fs.ensureDir(path.dirname(filePath));
-          
-          // Move file to final location
-          await fs.move(file.path, filePath);
-
-          const fileRecord = new FileStorage({
-            userId,
-            originalName: file.originalname,
-            fileName,
-            filePath,
-            fileSize: file.size,
-            mimeType: file.mimetype,
-            checksum: calculateChecksum(filePath)
+          cloudinaryResult = await cloudinary.uploader.upload(filePath, {
+            public_id: cloudinaryPath,
+            resource_type: resourceType,
+            use_filename: false,
+            unique_filename: true,
+            overwrite: false,
+            tags: [userTag, 'regular-file', 'migrateapp']
           });
 
-          await fileRecord.save();
-          uploadedFiles.push(fileRecord);
+          console.log('✅ Cloudinary upload successful:', {
+            public_id: cloudinaryResult.public_id,
+            secure_url: cloudinaryResult.secure_url
+          });
+
+        } catch (cloudinaryError) {
+          console.warn('⚠️  Cloudinary upload failed (continuing with local storage):', cloudinaryError.message);
+          // Don't throw error - just continue with local storage
         }
-      } catch (fileError) {
-        console.error(`Error processing file ${file.originalname}:`, fileError);
-        extractionStats.errors.push({
-          file: file.originalname,
-          error: fileError.message
+
+        // Get file extension for format detection
+        const extension = path.extname(file.originalname).toLowerCase();
+        const format = extension.replace('.', '') || 'unknown';
+
+        const fileRecord = new FileStorage({
+          userId,
+          originalFilename: file.originalname,
+          fileName,
+          filePath,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          format: format,
+          folderPath: '',
+          relativePath: file.originalname,
+          uploadedAt: new Date(),
+          
+          // Cloudinary fields (if upload was successful)
+          storageType: cloudinaryResult ? 'cloudinary' : 'local',
+          public_id: cloudinaryResult?.public_id || null,
+          secure_url: cloudinaryResult?.secure_url || null,
+          resource_type: cloudinaryResult?.resource_type || 'raw',
+          bytes: cloudinaryResult?.bytes || file.size,
+          
+          // Application-specific fields
+          sessionId: null,
+          isExtractedFromZip: false,
+          zipFileName: null,
+          fileType: 'regular-file',
+          
+          // Store complete Cloudinary response as metadata
+          metadata: {
+            cloudinary: cloudinaryResult,
+            uploadMethod: 'regular-file',
+            uploadedAt: new Date(),
+            localPath: filePath
+          }
         });
+
+        await fileRecord.save();
+        uploadedFiles.push(fileRecord);
+        
+        console.log('✅ File processed successfully:', file.originalname);
+      } catch (fileError) {
+        console.error('Error processing file', file.originalname, ':', fileError);
       }
     }
 
     // Prepare response message
     const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
     
-    console.log(`✅ File upload completed. Processed files: ${safeUploadedFiles.length}`);
-    console.log(`📋 Uploaded files:`, safeUploadedFiles.map(f => f.originalName));
+    console.log('✅ File upload completed. Processed files:', safeUploadedFiles.length);
     
     let message = `${safeUploadedFiles.length} files uploaded successfully`;
-    if (extractionStats.zipFilesProcessed > 0) {
-      message += ` (${extractionStats.zipFilesProcessed} ZIP files processed, ${extractionStats.filesExtracted} files extracted)`;
-    }
-    if (extractionStats.errors.length > 0) {
-      message += ` (${extractionStats.errors.length} errors occurred)`;
-    }
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message,
-      data: {
-        uploadedFiles: safeUploadedFiles.map(file => ({
-          id: file._id,
-          originalName: file.originalName,
-          fileName: file.fileName,
-          fileSize: file.fileSize,
-          mimeType: file.mimeType,
-          uploadedAt: file.uploadedAt,
-          extractedFrom: file.metadata?.extractedFrom || null
-        })),
+      message: message,
+      files: safeUploadedFiles.map(file => ({
+        id: file._id,
+        originalFilename: file.originalFilename,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        uploadedAt: file.uploadedAt,
+        storageType: file.storageType,
+        public_id: file.public_id,
+        secure_url: file.secure_url
+      })),
+      stats: {
         totalFiles: safeUploadedFiles.length,
-        totalSize: safeUploadedFiles.reduce((sum, file) => sum + (file.fileSize || 0), 0),
-        extractionStats: {
-          zipFilesProcessed: extractionStats.zipFilesProcessed,
-          filesExtracted: extractionStats.filesExtracted,
-          errors: extractionStats.errors,
-          warnings: extractionStats.warnings
-        }
+        cloudinaryFiles: safeUploadedFiles.filter(f => f.storageType === 'cloudinary').length,
+        localFiles: safeUploadedFiles.filter(f => f.storageType === 'local').length
       }
     });
 
@@ -212,48 +200,24 @@ export const uploadFiles = async (req, res) => {
 export const getUserFiles = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 20, search } = req.query;
-
-    const query = { userId };
-    if (search) {
-      query.$or = [
-        { originalName: { $regex: search, $options: 'i' } },
-        { fileName: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const files = await FileStorage.find(query)
-      .sort({ uploadedAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const totalFiles = await FileStorage.countDocuments(query);
-
+    const files = await FileStorage.find({ userId }).sort({ uploadedAt: -1 });
+    
     res.json({
       success: true,
-      data: {
-        files: files.map(file => ({
-          id: file._id,
-          originalName: file.originalName,
-          fileName: file.fileName,
-          fileSize: file.fileSize,
-          mimeType: file.mimeType,
-          uploadedAt: file.uploadedAt,
-          extractedFrom: file.metadata?.extractedFrom || null,
-          folderPath: file.folderPath || '',
-          relativePath: file.relativePath || file.originalName
-        })),
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(totalFiles / limit),
-          totalFiles,
-          hasNext: page < Math.ceil(totalFiles / limit),
-          hasPrev: page > 1
-        }
-      }
+      files: files.map(file => ({
+        id: file._id,
+        originalFilename: file.originalFilename,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        uploadedAt: file.uploadedAt,
+        storageType: file.storageType,
+        public_id: file.public_id,
+        secure_url: file.secure_url
+      }))
     });
   } catch (error) {
-    console.error('Get files error:', error);
+    console.error('Error getting user files:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get files',
@@ -267,7 +231,7 @@ export const getFile = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-
+    
     const file = await FileStorage.findOne({ _id: id, userId });
     if (!file) {
       return res.status(404).json({
@@ -276,23 +240,23 @@ export const getFile = async (req, res) => {
         message: 'File does not exist or you do not have permission to access it'
       });
     }
-
+    
     res.json({
       success: true,
-      data: {
-        file: {
-          id: file._id,
-          originalName: file.originalName,
-          fileName: file.fileName,
-          fileSize: file.fileSize,
-          mimeType: file.mimeType,
-          uploadedAt: file.uploadedAt,
-          extractedFrom: file.metadata?.extractedFrom || null
-        }
+      file: {
+        id: file._id,
+        originalFilename: file.originalFilename,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        uploadedAt: file.uploadedAt,
+        storageType: file.storageType,
+        public_id: file.public_id,
+        secure_url: file.secure_url
       }
     });
   } catch (error) {
-    console.error('Get file error:', error);
+    console.error('Error getting file:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get file',
@@ -306,7 +270,7 @@ export const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-
+    
     const file = await FileStorage.findOne({ _id: id, userId });
     if (!file) {
       return res.status(404).json({
@@ -315,21 +279,27 @@ export const downloadFile = async (req, res) => {
         message: 'File does not exist or you do not have permission to access it'
       });
     }
-
-    if (!fs.existsSync(file.filePath)) {
-      return res.status(404).json({
+    
+    // If file is stored in Cloudinary, redirect to Cloudinary URL
+    if (file.storageType === 'cloudinary' && file.secure_url) {
+      return res.redirect(file.secure_url);
+    }
+    
+    // If file is stored locally, serve it
+    if (fs.existsSync(file.filePath)) {
+      res.download(file.filePath, file.originalFilename);
+    } else {
+      res.status(404).json({
         success: false,
         error: 'File not found',
-        message: 'File has been deleted from storage'
+        message: 'File does not exist on disk'
       });
     }
-
-    res.download(file.filePath, file.originalName);
   } catch (error) {
-    console.error('Download file error:', error);
+    console.error('Error downloading file:', error);
     res.status(500).json({
       success: false,
-      error: 'Download failed',
+      error: 'Failed to download file',
       message: error.message
     });
   }
@@ -340,84 +310,98 @@ export const deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-
-    console.log(`🗑️  Deleting file ${id} for user ${userId}`);
-
+    
+    console.log('🗑️  ===== DELETE FILE START =====');
+    console.log('🗑️  File ID:', id);
+    console.log('🗑️  User ID:', userId);
+    
     const file = await FileStorage.findOne({ _id: id, userId });
     if (!file) {
+      console.log('❌ File not found in database');
       return res.status(404).json({
         success: false,
         error: 'File not found',
-        message: 'File does not exist or you do not have permission to access it'
+        message: 'File does not exist or you do not have permission to delete it'
       });
     }
-
-    console.log(`🗑️  Found file:`, {
+    
+    console.log('📋 File found in database:', {
       id: file._id,
       originalFilename: file.originalFilename,
       storageType: file.storageType,
       public_id: file.public_id,
-      secure_url: file.secure_url
+      resource_type: file.resource_type,
+      secure_url: file.secure_url ? 'exists' : 'null',
+      filePath: file.filePath
     });
     
-    // Debug: Log all file properties to see what's available
-    console.log(`🗑️  All file properties:`, Object.keys(file.toObject()));
-    console.log(`🗑️  File object:`, file.toObject());
-
-    let cloudinaryDeleteResult = null;
-
-    // Handle Cloudinary files
+    // Delete from Cloudinary if applicable
     if (file.storageType === 'cloudinary' && file.public_id) {
       try {
-        console.log(`🗑️  Deleting from Cloudinary: ${file.public_id}`);
-        cloudinaryDeleteResult = await cloudinary.api.delete_resources([file.public_id], {
-          resource_type: 'raw'
-        });
-        console.log(`✅ Cloudinary deletion result:`, cloudinaryDeleteResult);
-      } catch (cloudinaryError) {
-        console.error(`❌ Cloudinary deletion error:`, cloudinaryError);
-        // Continue with database deletion even if Cloudinary fails
-      }
-    }
-    // Handle local files
-    else if (file.storageType === 'local' && file.filePath) {
-      try {
-        if (fs.existsSync(file.filePath)) {
-          await fs.remove(file.filePath);
-          console.log(`✅ Local file deleted: ${file.filePath}`);
-        } else {
-          console.log(`⚠️  Local file not found: ${file.filePath}`);
+        console.log('🗑️  ===== CLOUDINARY DELETE START =====');
+        console.log('🗑️  Deleting from Cloudinary:', file.public_id);
+        console.log('🗑️  Resource type:', file.resource_type);
+        
+        // Delete from Cloudinary with proper resource type
+        const destroyOptions = {};
+        if (file.resource_type && file.resource_type !== 'raw') {
+          destroyOptions.resource_type = file.resource_type;
         }
-      } catch (fsError) {
-        console.error(`❌ Local file deletion error:`, fsError);
-        // Continue with database deletion even if file system fails
+        
+        console.log('🗑️  Destroy options:', destroyOptions);
+        
+        const result = await cloudinary.uploader.destroy(file.public_id, destroyOptions);
+        console.log('✅ Cloudinary deletion result:', result);
+        
+        if (result.result === 'ok') {
+          console.log('🎉 Cloudinary file deleted successfully!');
+        } else {
+          console.log('⚠️  Cloudinary delete result:', result.result);
+        }
+        
+        console.log('🗑️  ===== CLOUDINARY DELETE END =====');
+      } catch (cloudinaryError) {
+        console.error('❌ ===== CLOUDINARY DELETE ERROR =====');
+        console.error('❌ Cloudinary deletion failed:', cloudinaryError.message);
+        console.error('❌ Cloudinary error details:', cloudinaryError);
+        console.error('❌ ===== CLOUDINARY DELETE ERROR END =====');
+        // Continue with local deletion even if Cloudinary fails
       }
+    } else {
+      console.log('⚠️  ===== SKIPPING CLOUDINARY DELETE =====');
+      console.log('⚠️  Reason:', {
+        storageType: file.storageType,
+        hasPublicId: !!file.public_id,
+        public_id: file.public_id
+      });
+      console.log('⚠️  ===== SKIPPING CLOUDINARY DELETE END =====');
     }
-
-    // Delete file record from database
-    await FileStorage.findByIdAndDelete(id);
-    console.log(`✅ Database record deleted: ${id}`);
-
+    
+    // Delete local file
+    if (fs.existsSync(file.filePath)) {
+      await fs.remove(file.filePath);
+      console.log('✅ Local file deleted:', file.filePath);
+    } else {
+      console.log('⚠️  Local file not found:', file.filePath);
+    }
+    
+    // Delete database record
+    await FileStorage.deleteOne({ _id: id, userId });
+    
+    console.log('✅ Database record deleted:', id);
+    console.log('🗑️  ===== DELETE FILE END =====');
+    
     res.json({
       success: true,
-      message: 'File deleted successfully',
-      deletedFile: {
-        id: file._id,
-        originalFilename: file.originalFilename,
-        storageType: file.storageType
-      },
-      cloudinaryResult: cloudinaryDeleteResult,
-      details: {
-        databaseDeleted: 1,
-        cloudinaryDeleted: cloudinaryDeleteResult?.deleted?.length || 0,
-        cloudinaryNotFound: cloudinaryDeleteResult?.not_found?.length || 0
-      }
+      message: 'File deleted successfully'
     });
   } catch (error) {
-    console.error('Delete file error:', error);
+    console.error('❌ ===== DELETE FILE ERROR =====');
+    console.error('❌ Error deleting file:', error);
+    console.error('❌ ===== DELETE FILE ERROR END =====');
     res.status(500).json({
       success: false,
-      error: 'Delete failed',
+      error: 'Failed to delete file',
       message: error.message
     });
   }
@@ -427,16 +411,10 @@ export const deleteFile = async (req, res) => {
 export const createZipArchive = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fileIds } = req.query;
-
-    let files;
-    if (fileIds) {
-      const ids = fileIds.split(',');
-      files = await FileStorage.find({ _id: { $in: ids }, userId });
-    } else {
-      files = await FileStorage.find({ userId });
-    }
-
+    
+    // Get all files for the user
+    const files = await FileStorage.find({ userId });
+    
     if (files.length === 0) {
       return res.status(404).json({
         success: false,
@@ -444,25 +422,26 @@ export const createZipArchive = async (req, res) => {
         message: 'No files available to create archive'
       });
     }
-
+    
+    // Create archive
     const archive = archiver('zip', { zlib: { level: 9 } });
-    const fileName = `files_${userId}_${Date.now()}.zip`;
-
-    res.attachment(fileName);
+    
+    res.attachment('user-files.zip');
     archive.pipe(res);
-
+    
     for (const file of files) {
       if (fs.existsSync(file.filePath)) {
-        archive.file(file.filePath, { name: file.originalName });
+        archive.file(file.filePath, { name: file.originalFilename });
       }
     }
-
+    
     await archive.finalize();
+    
   } catch (error) {
-    console.error('Create archive error:', error);
+    console.error('Error creating ZIP archive:', error);
     res.status(500).json({
       success: false,
-      error: 'Archive creation failed',
+      error: 'Failed to create archive',
       message: error.message
     });
   }
@@ -472,35 +451,39 @@ export const createZipArchive = async (req, res) => {
 export const getFileStats = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const totalFiles = await FileStorage.countDocuments({ userId });
-    const totalSize = await FileStorage.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, totalSize: { $sum: '$fileSize' } } }
-    ]);
-
-    const filesByType = await FileStorage.aggregate([
-      { $match: { userId } },
-      { $group: { _id: '$mimeType', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
+    
+    const files = await FileStorage.find({ userId });
+    
+    const stats = {
+      totalFiles: files.length,
+      totalSize: files.reduce((sum, file) => sum + (file.fileSize || 0), 0),
+      cloudinaryFiles: files.filter(f => f.storageType === 'cloudinary').length,
+      localFiles: files.filter(f => f.storageType === 'local').length,
+      byType: {},
+      byFormat: {}
+    };
+    
+    // Count by MIME type
+    files.forEach(file => {
+      const type = file.mimeType?.split('/')[0] || 'unknown';
+      stats.byType[type] = (stats.byType[type] || 0) + 1;
+    });
+    
+    // Count by format
+    files.forEach(file => {
+      const format = file.format || 'unknown';
+      stats.byFormat[format] = (stats.byFormat[format] || 0) + 1;
+    });
+    
     res.json({
       success: true,
-      data: {
-        totalFiles,
-        totalSize: totalSize[0]?.totalSize || 0,
-        filesByType: filesByType.map(item => ({
-          mimeType: item._id,
-          count: item.count
-        }))
-      }
+      stats
     });
   } catch (error) {
-    console.error('Get file stats error:', error);
+    console.error('Error getting file stats:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get file statistics',
+      error: 'Failed to get stats',
       message: error.message
     });
   }
