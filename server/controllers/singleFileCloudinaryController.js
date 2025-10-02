@@ -10,7 +10,15 @@ import { generateFileName } from '../middleware/upload.js';
 
 // Helper function to check if file is a code file
 function isCodeFile(extension) {
-  const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala'];
+  const codeExtensions = [
+    // Core languages
+    '.js', '.ts', '.jsx', '.tsx', '.py', '.py2', '.py3', '.java', '.cpp', '.c', '.cs', 
+    '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala',
+    // Objective-C
+    '.m', '.mm', '.h',
+    // Frontend frameworks
+    '.vue', '.html', '.htm'
+  ];
   return codeExtensions.includes(extension);
 }
 
@@ -82,9 +90,17 @@ export const uploadSingleFileToCloudinary = async (req, res) => {
       
       // Determine resource type based on file type
       let resourceType = 'raw';
-      if (file.mimetype.startsWith('image/')) {
+      
+      // Force code files to be uploaded as raw files regardless of MIME type
+      const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.m', '.mm', '.h'];
+      const isCodeFile = codeExtensions.includes(fileExtension.toLowerCase());
+      
+      if (isCodeFile) {
+        resourceType = 'raw'; // Force code files to be raw
+        console.log(`🔧 Forcing code file ${file.originalname} to be uploaded as raw file`);
+      } else if (file.mimetype.startsWith('image/')) {
         resourceType = 'image';
-      } else if (file.mimetype.startsWith('video/')) {
+      } else if (file.mimetype.startsWith('video/') && !isCodeFile) {
         resourceType = 'video';
       }
 
@@ -118,6 +134,42 @@ export const uploadSingleFileToCloudinary = async (req, res) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const format = extension.replace('.', '') || 'unknown';
 
+    // Determine correct MIME type for code files
+    let correctMimeType = file.mimetype;
+    if (isCodeFile) {
+      // Override incorrect MIME types for code files
+      if (extension === '.ts' || extension === '.tsx') {
+        correctMimeType = 'text/typescript';
+      } else if (extension === '.js' || extension === '.jsx') {
+        correctMimeType = 'text/javascript';
+      } else if (extension === '.py') {
+        correctMimeType = 'text/x-python';
+      } else if (extension === '.java') {
+        correctMimeType = 'text/x-java-source';
+      } else if (extension === '.cpp' || extension === '.c') {
+        correctMimeType = 'text/x-c++src';
+      } else if (extension === '.cs') {
+        correctMimeType = 'text/x-csharp';
+      } else if (extension === '.php') {
+        correctMimeType = 'text/x-php';
+      } else if (extension === '.rb') {
+        correctMimeType = 'text/x-ruby';
+      } else if (extension === '.go') {
+        correctMimeType = 'text/x-go';
+      } else if (extension === '.rs') {
+        correctMimeType = 'text/x-rust';
+      } else if (extension === '.swift') {
+        correctMimeType = 'text/x-swift';
+      } else if (extension === '.kt') {
+        correctMimeType = 'text/x-kotlin';
+      } else if (extension === '.m' || extension === '.mm') {
+        correctMimeType = 'text/x-objc';
+      } else {
+        correctMimeType = 'text/plain';
+      }
+      console.log(`🔧 Corrected MIME type for ${file.originalname}: ${file.mimetype} → ${correctMimeType}`);
+    }
+
     // Create a session for this single file so the background processor can pick it up
     const sessionId = `single-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
 
@@ -126,7 +178,7 @@ export const uploadSingleFileToCloudinary = async (req, res) => {
       userId: new mongoose.Types.ObjectId(userId),
       originalFilename: file.originalname,
       fileSize: file.size,
-      mimeType: file.mimetype,
+      mimeType: correctMimeType,
       format: format,
       folderPath: '',
       relativePath: file.originalname,

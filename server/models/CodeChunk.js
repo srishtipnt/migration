@@ -32,7 +32,14 @@ const codeChunkSchema = new mongoose.Schema({
   },
   chunkType: {
     type: String,
-    enum: ['function', 'class', 'interface', 'variable', 'import', 'export', 'comment', 'other'],
+    enum: [
+      // Core language types
+      'function', 'class', 'interface', 'enum', 'variable', 'import', 'export', 'comment', 'file', 'other',
+      // HTML/Frontend types
+      'html', 'script', 'template', 'style',
+      // Framework-specific types
+      'angularjs', 'vue', 'react', 'angular'
+    ],
     required: true
   },
   chunkName: {
@@ -79,6 +86,24 @@ codeChunkSchema.index({ jobId: 1, filePath: 1, startLine: 1, endLine: 1, chunkTy
 // Static method to create a code chunk
 codeChunkSchema.statics.createChunk = async function(chunkData) {
   return await this.create(chunkData);
+};
+
+// Static method to upsert a code chunk (create or update)
+codeChunkSchema.statics.upsertChunk = async function(chunkData) {
+  const filter = {
+    jobId: chunkData.jobId,
+    filePath: chunkData.filePath,
+    startLine: chunkData.startLine,
+    endLine: chunkData.endLine,
+    chunkType: chunkData.chunkType,
+    chunkName: chunkData.chunkName
+  };
+  
+  return await this.findOneAndUpdate(filter, chunkData, { 
+    upsert: true, 
+    new: true,
+    setDefaultsOnInsert: true 
+  });
 };
 
 // Static method to get chunks by job

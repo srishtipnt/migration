@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './config/database.js';
 
 // Import background job processor
-import JobProcessorService from './services/JobProcessorService.js';
+import BackgroundJobProcessor from './services/BackgroundJobProcessor.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -20,11 +20,12 @@ import fileRoutes from './routes/fileRoutes.js';
 import zipCloudinaryRoutes from './routes/zipCloudinaryRoutes.js';
 import singleFileCloudinaryRoutes from './routes/singleFileCloudinaryRoutes.js';
 import migrationJobRoutes from './routes/migrationJobRoutes.js';
-import testRoutes from './routes/testRoutes.js';
 import forceChunkingRoutes from './routes/forceChunkingRoutes.js';
 import autoChunkingRoutes from './routes/autoChunkingRoutes.js';
 import migrationRoutes from './routes/migrationRoutes.js';
 import saveMigrationRoutes from './routes/saveMigrationRoutes.js';
+import systematicMigrationRoutes from './routes/systematicMigrationRoutes.js';
+import languageDetectionRoutes from './routes/languageDetectionRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -105,11 +106,12 @@ app.use('/api/files', fileRoutes);
 app.use('/api/zip-cloudinary', zipCloudinaryRoutes);
 app.use('/api/single-file-cloudinary', singleFileCloudinaryRoutes);
 app.use('/api/migration-jobs', migrationJobRoutes);
-app.use('/api/test', testRoutes);
 app.use('/api/force-chunking', forceChunkingRoutes);
 app.use('/api/auto-chunking', autoChunkingRoutes);
 app.use('/api/migrate', migrationRoutes);
 app.use('/api/save-migration', saveMigrationRoutes);
+app.use('/api/systematic-migration', systematicMigrationRoutes);
+app.use('/api/language-detection', languageDetectionRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -189,13 +191,13 @@ const server = app.listen(PORT, async () => {
   console.log(`📁 Upload directory: ${process.env.UPLOAD_PATH || './uploads'}`);
   console.log(`🗄️  Database: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/migration-service'}`);
   console.log(`🔧 Debug mode: Enhanced logging enabled`);
-  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/test, /api/force-chunking, /api/auto-chunking`);
+  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/force-chunking, /api/auto-chunking, /api/systematic-migration, /api/language-detection`);
   
   // Start background job processor
   try {
     console.log(`🔄 Starting background job processor...`);
-    jobProcessorInstance = new JobProcessorService();
-    await jobProcessorInstance.start();
+    jobProcessorInstance = new BackgroundJobProcessor();
+    await jobProcessorInstance.startProcessing();
     console.log(`✅ Background job processor started successfully`);
   } catch (error) {
     console.error(`❌ Failed to start background job processor:`, error);
@@ -208,7 +210,7 @@ let jobProcessorInstance = null;
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   if (jobProcessorInstance) {
-    jobProcessorInstance.shutdown();
+    jobProcessorInstance.stopProcessing();
   }
   server.close(() => {
     console.log('Process terminated');
@@ -219,7 +221,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   console.log('SIGINT received. Shutting down gracefully...');
   if (jobProcessorInstance) {
-    jobProcessorInstance.shutdown();
+    jobProcessorInstance.stopProcessing();
   }
   server.close(() => {
     console.log('Process terminated');

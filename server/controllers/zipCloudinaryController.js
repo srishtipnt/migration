@@ -149,7 +149,15 @@ export async function triggerAutomaticChunking(sessionId, userId, jobId) {
 }
 
 function isCodeFile(extension) {
-  const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala'];
+  const codeExtensions = [
+    // Core languages
+    '.js', '.ts', '.jsx', '.tsx', '.py', '.py2', '.py3', '.java', '.cpp', '.c', '.cs', 
+    '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala',
+    // Objective-C
+    '.m', '.mm', '.h',
+    // Frontend frameworks
+    '.vue', '.html', '.htm'
+  ];
   return codeExtensions.includes(extension);
 }
 

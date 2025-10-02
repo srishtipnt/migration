@@ -292,9 +292,64 @@ class BackgroundJobProcessor {
    */
   isCodeFile(extension) {
     const codeExtensions = [
-      '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs',
-      '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.r',
-      '.m', '.h', '.hpp', '.cc', '.cxx', '.vue', '.svelte'
+      // JavaScript/TypeScript
+      '.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs',
+      // Python
+      '.py', '.pyw', '.pyi', '.py2', '.py3',
+      // Java
+      '.java', '.jsp', '.jspx',
+      // C/C++
+      '.c', '.cpp', '.cc', '.cxx', '.c++', '.h', '.hpp', '.hxx', '.h++',
+      // C#
+      '.cs', '.csx',
+      // PHP
+      '.php', '.phtml', '.php3', '.php4', '.php5', '.php7', '.phps',
+      // Ruby
+      '.rb', '.rbw', '.rake', '.gemspec',
+      // Go
+      '.go',
+      // Rust
+      '.rs',
+      // Swift
+      '.swift',
+      // Objective-C
+      '.m', '.mm', '.h',
+      // Kotlin
+      '.kt', '.kts',
+      // Scala
+      '.scala', '.sc',
+      // R
+      '.r', '.R',
+      // MATLAB
+      '.m', '.matlab',
+      // Perl
+      '.pl', '.pm', '.t', '.pod',
+      // Lua
+      '.lua',
+      // Dart
+      '.dart',
+      // Elixir
+      '.ex', '.exs',
+      // Clojure
+      '.clj', '.cljs', '.cljc', '.edn',
+      // Haskell
+      '.hs', '.lhs',
+      // F#
+      '.fs', '.fsi', '.fsx',
+      // OCaml
+      '.ml', '.mli',
+      // Erlang
+      '.erl', '.hrl',
+      // Julia
+      '.jl',
+      // Crystal
+      '.cr',
+      // Nim
+      '.nim', '.nims',
+      // Zig
+      '.zig',
+      // Frontend Frameworks
+      '.vue', '.svelte', '.astro', '.html', '.htm'
     ];
     return codeExtensions.includes(extension);
   }
@@ -314,24 +369,75 @@ class BackgroundJobProcessor {
   }
 
   /**
-   * Simple chunking implementation (to be replaced with tree-sitter)
+   * Semantic chunking implementation - creates meaningful logical units
    */
   simpleChunking(content, filePath, fileName, extension) {
-    const chunks = [];
-    const lines = content.split('\n');
+    // Special handling for HTML files
+    if (extension === '.html' || extension === '.htm') {
+      return this.chunkHtmlFile(content, filePath, fileName, extension);
+    }
     
-    // Split content into logical chunks (functions, classes, etc.)
+    // For small files (< 500 lines), process as single unit
+    const lines = content.split('\n');
+    if (lines.length < 500) {
+      return [{
+        filePath,
+        fileName,
+        fileExtension: extension,
+        chunkType: 'file',
+        chunkName: fileName,
+        content: content.trim(),
+        startLine: 1,
+        endLine: lines.length
+      }];
+    }
+    
+    const chunks = [];
+    
+    // Semantic chunking: group related constructs together
     let currentChunk = '';
     let startLine = 1;
     let chunkType = 'other';
     let chunkName = fileName;
+    let braceLevel = 0;
+    let inClass = false;
+    let inFunction = false;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineNumber = i + 1;
+      const trimmed = line.trim();
       
-      // Detect function definitions
-      if (this.isFunctionDefinition(line, extension)) {
+      // Track brace levels for proper scope detection
+      braceLevel += (line.match(/{/g) || []).length;
+      braceLevel -= (line.match(/}/g) || []).length;
+      
+      // Detect major constructs (classes, interfaces, enums)
+      if (this.isClassDefinition(line, extension) || this.isInterfaceDefinition(line, extension) || this.isEnumDefinition(line, extension)) {
+        // Save previous chunk if exists
+        if (currentChunk.trim()) {
+          chunks.push({
+            filePath,
+            fileName,
+            fileExtension: extension,
+            chunkType,
+            chunkName,
+            content: currentChunk.trim(),
+            startLine,
+            endLine: lineNumber - 1
+          });
+        }
+        
+        // Start new major construct chunk
+        currentChunk = line;
+        startLine = lineNumber;
+        chunkType = this.getChunkTypeFromLine(line, extension);
+        chunkName = this.extractConstructName(line, extension);
+        inClass = true;
+        inFunction = false;
+      }
+      // Detect standalone functions (not inside classes)
+      else if (this.isFunctionDefinition(line, extension) && !inClass) {
         // Save previous chunk if exists
         if (currentChunk.trim()) {
           chunks.push({
@@ -351,9 +457,92 @@ class BackgroundJobProcessor {
         startLine = lineNumber;
         chunkType = 'function';
         chunkName = this.extractFunctionName(line, extension);
+        inFunction = true;
       }
-      // Detect class definitions
-      else if (this.isClassDefinition(line, extension)) {
+      // If we're inside a class and encounter a function, include it in the class chunk
+      else if (inClass && this.isFunctionDefinition(line, extension)) {
+        currentChunk += '\n' + line;
+        inFunction = true;
+      }
+      // If we're inside a class and the brace level goes back to 0, end the class
+      else if (inClass && braceLevel === 0 && trimmed === '}') {
+        currentChunk += '\n' + line;
+        // Save the complete class chunk
+        chunks.push({
+          filePath,
+          fileName,
+          fileExtension: extension,
+          chunkType,
+          chunkName,
+          content: currentChunk.trim(),
+          startLine,
+          endLine: lineNumber
+        });
+        currentChunk = '';
+        inClass = false;
+        inFunction = false;
+      }
+      // If we're in a standalone function and the brace level goes back to 0, end the function
+      else if (inFunction && !inClass && braceLevel === 0 && trimmed === '}') {
+        currentChunk += '\n' + line;
+        // Save the complete function chunk
+        chunks.push({
+          filePath,
+          fileName,
+          fileExtension: extension,
+          chunkType,
+          chunkName,
+          content: currentChunk.trim(),
+          startLine,
+          endLine: lineNumber
+        });
+        currentChunk = '';
+        inFunction = false;
+      }
+      else {
+        currentChunk += '\n' + line;
+      }
+    }
+    
+    // Save final chunk if exists
+    if (currentChunk.trim()) {
+      chunks.push({
+        filePath,
+        fileName,
+        fileExtension: extension,
+        chunkType,
+        chunkName,
+        content: currentChunk.trim(),
+        startLine,
+        endLine: lines.length
+      });
+    }
+    
+    return chunks;
+  }
+
+  /**
+   * Special chunking for HTML files (AngularJS, Vue, etc.)
+   */
+  chunkHtmlFile(content, filePath, fileName, extension) {
+    const chunks = [];
+    const lines = content.split('\n');
+    
+    let currentChunk = '';
+    let startLine = 1;
+    let chunkType = 'html';
+    let chunkName = fileName;
+    let inScript = false;
+    let inTemplate = false;
+    let inStyle = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineNumber = i + 1;
+      const trimmed = line.trim();
+      
+      // Detect script sections
+      if (trimmed.includes('<script>') || trimmed.includes('<script ')) {
         // Save previous chunk if exists
         if (currentChunk.trim()) {
           chunks.push({
@@ -368,11 +557,110 @@ class BackgroundJobProcessor {
           });
         }
         
-        // Start new class chunk
         currentChunk = line;
         startLine = lineNumber;
-        chunkType = 'class';
-        chunkName = this.extractClassName(line, extension);
+        chunkType = 'script';
+        chunkName = 'script_section';
+        inScript = true;
+        inTemplate = false;
+        inStyle = false;
+      }
+      // Detect template sections
+      else if (trimmed.includes('<template>') || trimmed.includes('<div')) {
+        if (!inScript && !inStyle) {
+          if (currentChunk.trim()) {
+            chunks.push({
+              filePath,
+              fileName,
+              fileExtension: extension,
+              chunkType,
+              chunkName,
+              content: currentChunk.trim(),
+              startLine,
+              endLine: lineNumber - 1
+            });
+          }
+          
+          currentChunk = line;
+          startLine = lineNumber;
+          chunkType = 'template';
+          chunkName = 'template_section';
+          inTemplate = true;
+          inScript = false;
+          inStyle = false;
+        }
+      }
+      // Detect style sections
+      else if (trimmed.includes('<style>') || trimmed.includes('<style ')) {
+        if (!inScript && !inTemplate) {
+          if (currentChunk.trim()) {
+            chunks.push({
+              filePath,
+              fileName,
+              fileExtension: extension,
+              chunkType,
+              chunkName,
+              content: currentChunk.trim(),
+              startLine,
+              endLine: lineNumber - 1
+            });
+          }
+          
+          currentChunk = line;
+          startLine = lineNumber;
+          chunkType = 'style';
+          chunkName = 'style_section';
+          inStyle = true;
+          inScript = false;
+          inTemplate = false;
+        }
+      }
+      // Detect AngularJS patterns
+      else if (trimmed.includes('.controller(') || trimmed.includes('.service(') || 
+               trimmed.includes('.directive(') || trimmed.includes('.factory(') ||
+               trimmed.includes('.filter(')) {
+        if (inScript) {
+          if (currentChunk.trim()) {
+            chunks.push({
+              filePath,
+              fileName,
+              fileExtension: extension,
+              chunkType,
+              chunkName,
+              content: currentChunk.trim(),
+              startLine,
+              endLine: lineNumber - 1
+            });
+          }
+          
+          currentChunk = line;
+          startLine = lineNumber;
+          chunkType = 'angularjs';
+          chunkName = this.extractAngularJSName(line);
+        }
+      }
+      // Detect Vue patterns
+      else if (trimmed.includes('export default') || trimmed.includes('methods:') ||
+               trimmed.includes('computed:') || trimmed.includes('watch:')) {
+        if (inScript) {
+          if (currentChunk.trim()) {
+            chunks.push({
+              filePath,
+              fileName,
+              fileExtension: extension,
+              chunkType,
+              chunkName,
+              content: currentChunk.trim(),
+              startLine,
+              endLine: lineNumber - 1
+            });
+          }
+          
+          currentChunk = line;
+          startLine = lineNumber;
+          chunkType = 'vue';
+          chunkName = this.extractVueName(line);
+        }
       }
       else {
         currentChunk += '\n' + line;
@@ -412,6 +700,23 @@ class BackgroundJobProcessor {
         return /^def\s+\w+\s*\(/.test(trimmed);
       case '.java':
         return /^(public|private|protected)?\s*(static\s+)?\w+\s+\w+\s*\(/.test(trimmed);
+      case '.cs':
+        // C# methods: public/private/protected, static/virtual/override, return type, method name
+        return /^(public|private|protected|internal)?\s*(static|virtual|override|abstract)?\s*\w+\s+\w+\s*\(/.test(trimmed);
+      case '.c':
+      case '.cpp':
+      case '.cc':
+      case '.cxx':
+      case '.c++':
+        // C/C++ functions: return type, function name
+        return /^\w+\s+\w+\s*\(/.test(trimmed);
+      case '.html':
+      case '.htm':
+        // AngularJS controller functions, Vue methods, etc.
+        return /^\s*function\s+\w+\s*\(|^\s*\w+\s*:\s*function\s*\(|^\s*\w+\s*\([^)]*\)\s*{/.test(trimmed);
+      case '.vue':
+        // Vue component methods
+        return /^\s*(methods|computed|watch)\s*:\s*{|^\s*\w+\s*\([^)]*\)\s*{/.test(trimmed);
       default:
         return false;
     }
@@ -433,6 +738,23 @@ class BackgroundJobProcessor {
         return /^class\s+\w+/.test(trimmed);
       case '.java':
         return /^(public|private|protected)?\s*class\s+\w+/.test(trimmed);
+      case '.cs':
+        // C# classes: public/private/protected, class/struct/interface, class name
+        return /^(public|private|protected|internal)?\s*(class|struct|interface)\s+\w+/.test(trimmed);
+      case '.c':
+      case '.cpp':
+      case '.cc':
+      case '.cxx':
+      case '.c++':
+        // C++ classes: class/struct, class name
+        return /^(class|struct)\s+\w+/.test(trimmed);
+      case '.html':
+      case '.htm':
+        // AngularJS controllers, services, directives
+        return /^\s*\.controller\s*\(|^\s*\.service\s*\(|^\s*\.directive\s*\(|^\s*\.factory\s*\(|^\s*\.filter\s*\(/.test(trimmed);
+      case '.vue':
+        // Vue component definition
+        return /^\s*export\s+default\s*{|^\s*<script>|^\s*<template>|^\s*<style>/.test(trimmed);
       default:
         return false;
     }
@@ -457,6 +779,25 @@ class BackgroundJobProcessor {
       case '.java':
         const javaMatch = trimmed.match(/(?:public|private|protected)?\s*(?:static\s+)?\w+\s+(\w+)\s*\(/);
         return javaMatch ? javaMatch[1] : 'anonymous';
+      case '.cs':
+        // C# method name extraction: return type methodName(
+        const csMatch = trimmed.match(/(?:public|private|protected|internal)?\s*(?:static|virtual|override|abstract)?\s*\w+\s+(\w+)\s*\(/);
+        return csMatch ? csMatch[1] : 'anonymous';
+      case '.c':
+      case '.cpp':
+      case '.cc':
+      case '.cxx':
+      case '.c++':
+        // C/C++ function name extraction: return_type functionName(
+        const cMatch = trimmed.match(/\w+\s+(\w+)\s*\(/);
+        return cMatch ? cMatch[1] : 'anonymous';
+      case '.html':
+      case '.htm':
+        const htmlMatch = trimmed.match(/function\s+(\w+)|(\w+)\s*:\s*function/);
+        return htmlMatch ? (htmlMatch[1] || htmlMatch[2]) : 'anonymous';
+      case '.vue':
+        const vueMatch = trimmed.match(/(\w+)\s*\([^)]*\)\s*{/);
+        return vueMatch ? vueMatch[1] : 'anonymous';
       default:
         return 'unknown';
     }
@@ -481,8 +822,91 @@ class BackgroundJobProcessor {
       case '.java':
         const javaMatch = trimmed.match(/(?:public|private|protected)?\s*class\s+(\w+)/);
         return javaMatch ? javaMatch[1] : 'UnknownClass';
+      case '.cs':
+        // C# class name extraction: class/struct/interface ClassName
+        const csMatch = trimmed.match(/(?:public|private|protected|internal)?\s*(?:class|struct|interface)\s+(\w+)/);
+        return csMatch ? csMatch[1] : 'UnknownClass';
+      case '.c':
+      case '.cpp':
+      case '.cc':
+      case '.cxx':
+      case '.c++':
+        // C++ class name extraction: class/struct ClassName
+        const cMatch = trimmed.match(/(?:class|struct)\s+(\w+)/);
+        return cMatch ? cMatch[1] : 'UnknownClass';
       default:
         return 'UnknownClass';
+    }
+  }
+
+  /**
+   * Check if line is an interface definition
+   */
+  isInterfaceDefinition(line, extension) {
+    const trimmed = line.trim();
+    
+    switch (extension) {
+      case '.cs':
+        return /^(public|private|protected|internal)?\s*interface\s+\w+/.test(trimmed);
+      case '.java':
+        return /^(public|private|protected)?\s*interface\s+\w+/.test(trimmed);
+      case '.ts':
+      case '.tsx':
+        return /^(export\s+)?interface\s+\w+/.test(trimmed);
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Check if line is an enum definition
+   */
+  isEnumDefinition(line, extension) {
+    const trimmed = line.trim();
+    
+    switch (extension) {
+      case '.cs':
+        return /^(public|private|protected|internal)?\s*enum\s+\w+/.test(trimmed);
+      case '.java':
+        return /^(public|private|protected)?\s*enum\s+\w+/.test(trimmed);
+      case '.ts':
+      case '.tsx':
+        return /^(export\s+)?enum\s+\w+/.test(trimmed);
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Get chunk type from line
+   */
+  getChunkTypeFromLine(line, extension) {
+    if (this.isClassDefinition(line, extension)) return 'class';
+    if (this.isInterfaceDefinition(line, extension)) return 'interface';
+    if (this.isEnumDefinition(line, extension)) return 'enum';
+    if (this.isFunctionDefinition(line, extension)) return 'function';
+    return 'other';
+  }
+
+  /**
+   * Extract construct name (class, interface, enum)
+   */
+  extractConstructName(line, extension) {
+    const trimmed = line.trim();
+    
+    switch (extension) {
+      case '.cs':
+        const csMatch = trimmed.match(/(?:public|private|protected|internal)?\s*(?:class|struct|interface|enum)\s+(\w+)/);
+        return csMatch ? csMatch[1] : 'UnknownConstruct';
+      case '.java':
+        const javaMatch = trimmed.match(/(?:public|private|protected)?\s*(?:class|interface|enum)\s+(\w+)/);
+        return javaMatch ? javaMatch[1] : 'UnknownConstruct';
+      case '.ts':
+      case '.tsx':
+        const tsMatch = trimmed.match(/(?:export\s+)?(?:class|interface|enum)\s+(\w+)/);
+        return tsMatch ? tsMatch[1] : 'UnknownConstruct';
+      default:
+        return 'UnknownConstruct';
     }
   }
 
@@ -544,30 +968,61 @@ class BackgroundJobProcessor {
    */
   async saveChunksToDatabase(chunks, job) {
     try {
+      console.log(`🔍 Debug: About to save ${chunks.length} chunks for job ${job._id}`);
+      console.log(`🔍 Debug: Job sessionId: ${job.sessionId}, userId: ${job.userId}`);
+      
       // Clear existing chunks for this job to avoid duplicates
       console.log(`🧹 Clearing existing chunks for job: ${job._id}`);
-      await CodeChunk.deleteMany({ jobId: job._id });
+      const deleteResult = await CodeChunk.deleteMany({ jobId: job._id });
+      console.log(`🧹 Deleted ${deleteResult.deletedCount} existing chunks`);
+      
+      // Small delay to ensure deletion is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       let savedCount = 0;
+      let skippedCount = 0;
       
       for (const chunk of chunks) {
         try {
-          await CodeChunk.createChunk({
+          const chunkData = {
             jobId: job._id,
             sessionId: job.sessionId,
             userId: job.userId,
+            fileExtension: chunk.fileName ? chunk.fileName.split('.').pop() || 'js' : 'js',
             ...chunk
+          };
+          
+          console.log(`🔍 Debug: Saving chunk with data:`, {
+            jobId: chunkData.jobId,
+            sessionId: chunkData.sessionId,
+            userId: chunkData.userId,
+            filePath: chunkData.filePath,
+            fileName: chunkData.fileName,
+            chunkType: chunkData.chunkType,
+            chunkName: chunkData.chunkName
           });
+          
+          // Use upsert to handle potential duplicates gracefully
+          await CodeChunk.upsertChunk(chunkData);
           savedCount++;
+          
         } catch (error) {
+          if (error.code === 11000) {
+            // Duplicate key error - skip this chunk
+            console.log(`⚠️ Duplicate chunk skipped: ${chunk.chunkName || 'anonymous'}`);
+            skippedCount++;
+          } else {
           console.error(`❌ Failed to save chunk: ${error.message}`);
+          console.error(`❌ Chunk data:`, chunk);
           throw error;
+          }
         }
       }
       
-      console.log(`💾 Saved ${savedCount} chunks to database`);
+      console.log(`💾 Saved ${savedCount} chunks to database (${skippedCount} duplicates skipped)`);
       
     } catch (error) {
+      console.error(`❌ Error in saveChunksToDatabase:`, error);
       throw new Error(`Failed to save chunks to database: ${error.message}`);
     }
   }
@@ -593,6 +1048,42 @@ class BackgroundJobProcessor {
     } catch (error) {
       console.error('❌ Error creating temp workspace directory:', error);
     }
+  }
+
+  /**
+   * Extract AngularJS component name from line
+   */
+  extractAngularJSName(line) {
+    const trimmed = line.trim();
+    
+    // Match .controller('Name', ...), .service('Name', ...), etc.
+    const match = trimmed.match(/\.(controller|service|directive|factory|filter)\s*\(\s*['"`]([^'"`]+)['"`]/);
+    if (match) {
+      return `${match[1]}_${match[2]}`;
+    }
+    
+    return 'angularjs_component';
+  }
+
+  /**
+   * Extract Vue component name from line
+   */
+  extractVueName(line) {
+    const trimmed = line.trim();
+    
+    // Match export default { name: 'ComponentName' }
+    const nameMatch = trimmed.match(/name\s*:\s*['"`]([^'"`]+)['"`]/);
+    if (nameMatch) {
+      return `vue_${nameMatch[1]}`;
+    }
+    
+    // Match methods:, computed:, watch:, etc.
+    const sectionMatch = trimmed.match(/(methods|computed|watch|data|created|mounted|updated|destroyed)\s*:/);
+    if (sectionMatch) {
+      return `vue_${sectionMatch[1]}`;
+    }
+    
+    return 'vue_component';
   }
 }
 

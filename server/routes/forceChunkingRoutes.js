@@ -175,14 +175,25 @@ router.post('/force-chunking/:sessionId', authenticateToken, async (req, res) =>
  */
 function isCodeFile(extension) {
   const codeExtensions = [
-    '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs',
+    // Core languages
+    '.js', '.ts', '.jsx', '.tsx', '.py', '.py2', '.py3', '.java', '.cpp', '.c', '.cs',
     '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.r',
-    '.m', '.h', '.hpp', '.cc', '.cxx', '.vue', '.svelte'
+    // Objective-C
+    '.m', '.h', '.hpp', '.cc', '.cxx',
+    // Frontend frameworks
+    '.vue', '.svelte', '.html', '.htm'
   ];
   return codeExtensions.includes(extension);
 }
 
 export default router;
+
+
+
+
+
+
+
 
 
 
