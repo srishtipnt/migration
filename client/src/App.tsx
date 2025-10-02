@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
 import MigrationPage from './pages/MigrationPage';
+import MigrationResultsPage from './pages/MigrationResultsPage';
 import DebugSingleFilePage from './pages/DebugSingleFilePage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -26,6 +27,10 @@ function App() {
               <MigrationPage />
             </Layout>
           } 
+        />
+        <Route 
+          path="/migration-results" 
+          element={<MigrationResultsPage />}
         />
         <Route 
           path="/debug-single-file" 

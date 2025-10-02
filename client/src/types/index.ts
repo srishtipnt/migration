@@ -99,3 +99,33 @@ export interface Notification {
   timestamp: Date;
   read: boolean;
 }
+
+// Language Detection Types
+export interface LanguageDetectionResult {
+  framework: string | null;
+  frameworkConfidence: number;
+  syntax: string | null;
+  syntaxConfidence: number;
+  extension: string;
+  displayName: string;
+  tag: string;
+  isFrameworkDetected: boolean;
+  isSyntaxDetected: boolean;
+}
+
+export interface LanguageOption {
+  value: string;
+  label: string;
+  tag?: string;
+  description?: string;
+  isFramework?: boolean;
+  supportedSyntax?: string[];
+}
+
+export interface TwoLevelLanguageInfo {
+  primary: string;        // The main framework/language (React, Vue, TypeScript, etc.)
+  secondary?: string;     // The syntax variant (TSX, JSX, etc.)
+  displayName: string;    // User-friendly name (e.g., "React")
+  tag: string;           // Badge text (e.g., "TypeScript/TSX")
+  confidence: number;     // Detection confidence (0-1)
+}

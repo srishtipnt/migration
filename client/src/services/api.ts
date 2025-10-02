@@ -8,7 +8,7 @@ class ApiService {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 30000,
+      timeout: 120000, // Increased to 2 minutes for migration operations
       headers: { 'Content-Type': 'application/json' }
     });
 
@@ -236,16 +236,26 @@ class ApiService {
     console.log('  - toLang:', toLang);
     console.log('  - endpoint:', `/migrate/test/${sessionId}`);
     
-    const response = await this.client.post(`/migrate/test/${sessionId}?t=${Date.now()}`, {
-      fromLang,
-      toLang
-    });
-    
-    console.log('📥 API Response:', response.data);
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', response.headers);
-    console.log('📥 Full response:', response);
-    return response.data;
+    try {
+      const response = await this.client.post(`/migrate/test/${sessionId}?t=${Date.now()}`, {
+        fromLang,
+        toLang
+      }, {
+        timeout: 180000 // 3 minutes for migration operations
+      });
+      
+      console.log('📥 API Response:', response.data);
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', response.headers);
+      console.log('📥 Full response:', response);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Migration API Error:', error);
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Migration request timed out. The server may be processing a large file. Please try again.');
+      }
+      throw error;
+    }
   }
 
   async testMigrationAgent() {
@@ -261,6 +271,56 @@ class ApiService {
   async getOriginalFiles(sessionId: string) {
     const response = await this.client.get(`/migrate/original-files/${sessionId}`);
     return response.data;
+  }
+
+  // Language Detection API methods
+  async detectLanguage(filename: string, content: string) {
+    try {
+      const response = await this.client.post('/language-detection/detect', {
+        filename,
+        content
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error detecting language:', error);
+      throw error;
+    }
+  }
+
+  async validateLanguage(filename: string, content: string, expectedLanguage: string) {
+    try {
+      const response = await this.client.post('/language-detection/validate', {
+        filename,
+        content,
+        expectedLanguage
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error validating language:', error);
+      throw error;
+    }
+  }
+
+  async getSupportedLanguages() {
+    try {
+      const response = await this.client.get('/language-detection/supported-languages');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching supported languages:', error);
+      throw error;
+    }
+  }
+
+  async batchDetectLanguages(files: Array<{ filename: string; content: string }>) {
+    try {
+      const response = await this.client.post('/language-detection/batch-detect', {
+        files
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in batch language detection:', error);
+      throw error;
+    }
   }
 }
 

@@ -35,7 +35,11 @@ const MigrationResults: React.FC<MigrationResultsProps> = ({ result, originalFil
   };
 
   const handleDownloadFile = (file: any) => {
-    const blob = new Blob([file.content], { type: 'text/plain' });
+    const processedContent = file.content
+      ?.replace(/\\n/g, '\n')
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\r/g, '\n') || '';
+    const blob = new Blob([processedContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -62,6 +66,47 @@ const MigrationResults: React.FC<MigrationResultsProps> = ({ result, originalFil
 
   const currentFile = result.files[activeFileIndex];
   const originalContent = originalFiles[currentFile?.filename] || '';
+  
+  // Function to extract actual code from JSON structures
+  const extractCodeFromJson = (content: string): string => {
+    if (!content) return '';
+    
+    // Check if content contains JSON structure
+    if (content.includes('"migratedCode"') || content.includes('"content"')) {
+      try {
+        // Try to parse as JSON and extract the code
+        const jsonMatch = content.match(/"migratedCode":\s*"([^"]+)"/);
+        if (jsonMatch) {
+          return jsonMatch[1].replace(/\\n/g, '\n').replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n');
+        }
+        
+        // Try to extract from content field
+        const contentMatch = content.match(/"content":\s*"([^"]+)"/);
+        if (contentMatch) {
+          return contentMatch[1].replace(/\\n/g, '\n').replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n');
+        }
+      } catch (e) {
+        console.log('🔍 JSON extraction failed, using raw content');
+      }
+    }
+    
+    return content;
+  };
+
+  // Process content to convert escaped newlines to actual newlines and clean up
+  const processedOriginalContent = originalContent
+    .replace(/\\n/g, '\n')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\s+$/gm, '') // Remove trailing whitespace from each line
+    .trim(); // Remove leading/trailing whitespace
+  
+  const processedMigratedContent = extractCodeFromJson(currentFile?.content || '')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\s+$/gm, '') // Remove trailing whitespace from each line
+    .trim(); // Remove leading/trailing whitespace
 
   // Debug: Log modal dimensions
   React.useEffect(() => {
@@ -166,7 +211,7 @@ const MigrationResults: React.FC<MigrationResultsProps> = ({ result, originalFil
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => handleCopyCode(currentFile.content, activeFileIndex)}
+                    onClick={() => handleCopyCode(processedMigratedContent, activeFileIndex)}
                     className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors copy-button"
                   >
                     {copiedFiles.has(activeFileIndex) ? (
@@ -188,60 +233,142 @@ const MigrationResults: React.FC<MigrationResultsProps> = ({ result, originalFil
                 </div>
               </div>
 
-              {/* Diff Content */}
-              <div className="flex-1 overflow-auto min-h-0 p-2">
-                <div className="diff-viewer h-full">
-                  {originalContent && currentFile.content ? (
+              {/* Enhanced Diff Content */}
+              <div className="flex-1 overflow-hidden">
+                <div className="h-full bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+                  {processedOriginalContent && processedMigratedContent ? (
                     <ReactDiffViewer
-                      oldValue={originalContent}
-                      newValue={currentFile.content}
+                      oldValue={processedOriginalContent}
+                      newValue={processedMigratedContent}
                       splitView={true}
                       showDiffOnly={false}
                       useDarkTheme={false}
                       compareMethod={DiffMethod.WORDS}
-                      leftTitle="Original"
-                      rightTitle="Migrated"
+                      leftTitle={
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span className="font-semibold text-gray-700">Original Code</span>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                            {currentFile.filename}
+                          </span>
+                        </div>
+                      }
+                      rightTitle={
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="font-semibold text-gray-700">Migrated Code</span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            {currentFile.migratedFilename}
+                          </span>
+                        </div>
+                      }
                       styles={{
                         diffContainer: {
                           fontSize: '14px',
-                          height: '100%',
-                          minHeight: '600px',
-                          fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                          height: 'auto',
+                          minHeight: '400px',
+                          maxHeight: '80vh',
+                          fontFamily: 'JetBrains Mono, Monaco, Consolas, "Courier New", monospace',
+                          borderRadius: '8px',
+                          overflow: 'auto',
+                          overflowY: 'scroll',
+                          overflowX: 'auto',
                         },
                         diffTable: {
-                          height: '100%',
-                          minHeight: '600px',
+                          height: 'auto',
+                          minHeight: '400px',
+                          borderCollapse: 'separate',
+                          borderSpacing: '0',
+                          width: '100%',
                         },
                         diffTableContainer: {
-                          height: '100%',
-                          minHeight: '600px',
+                          height: 'auto',
+                          minHeight: '400px',
+                          maxHeight: '80vh',
+                          borderRadius: '8px',
+                          overflow: 'auto',
+                          overflowY: 'scroll',
+                          overflowX: 'auto',
+                        },
+                        title: {
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          fontWeight: '600',
                         },
                         diffRemoved: {
-                          backgroundColor: '#fee2e2',
+                          backgroundColor: '#fef2f2',
                           color: '#dc2626',
+                          borderLeft: '3px solid #fca5a5',
+                          padding: '8px 12px',
                         },
                         diffAdded: {
-                          backgroundColor: '#dcfce7',
+                          backgroundColor: '#f0fdf4',
                           color: '#16a34a',
+                          borderLeft: '3px solid #86efac',
+                          padding: '8px 12px',
+                        },
+                        diffChanged: {
+                          backgroundColor: '#fefce8',
+                          color: '#ca8a04',
+                          borderLeft: '3px solid #fde047',
+                          padding: '8px 12px',
                         },
                         wordDiff: {
                           backgroundColor: '#fef3c7',
+                          borderRadius: '3px',
+                          padding: '1px 3px',
                         },
                         wordAdded: {
                           backgroundColor: '#bbf7d0',
+                          color: '#166534',
+                          borderRadius: '3px',
+                          padding: '1px 3px',
+                          fontWeight: '500',
                         },
                         wordRemoved: {
                           backgroundColor: '#fecaca',
+                          color: '#991b1b',
+                          borderRadius: '3px',
+                          padding: '1px 3px',
+                          fontWeight: '500',
+                        },
+                        gutter: {
+                          backgroundColor: '#f1f5f9',
+                          color: '#64748b',
+                          fontSize: '12px',
+                          padding: '8px 8px',
+                          borderRight: '1px solid #e2e8f0',
+                          minWidth: '50px',
+                          textAlign: 'center',
+                        },
+                        line: {
+                          padding: '4px 0',
+                          lineHeight: '1.6',
+                        },
+                        lineNumber: {
+                          color: '#94a3b8',
+                          fontSize: '12px',
+                          fontWeight: '400',
                         },
                       }}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="flex items-center justify-center h-96 text-gray-500">
                       <div className="text-center">
-                        <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                        <p>No content to display</p>
-                        <p className="text-sm">Original: {originalContent ? 'Available' : 'Missing'}</p>
-                        <p className="text-sm">Migrated: {currentFile.content ? 'Available' : 'Missing'}</p>
+                        <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Content to Display</h3>
+                        <div className="space-y-1 text-sm">
+                          <p className="flex items-center justify-center space-x-2">
+                            <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                            <span>Original: {originalContent ? 'Available' : 'Missing'}</span>
+                          </p>
+                          <p className="flex items-center justify-center space-x-2">
+                            <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                            <span>Migrated: {currentFile.content ? 'Available' : 'Missing'}</span>
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
