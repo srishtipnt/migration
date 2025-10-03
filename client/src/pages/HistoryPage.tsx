@@ -119,7 +119,7 @@ const HistoryPage: React.FC = () => {
               Retry
             </button>
             <button
-              onClick={() => navigate('/migration')}
+              onClick={() => navigate('/migrate')}
               className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
             >
               Back to Migration
@@ -138,7 +138,7 @@ const HistoryPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/migration')}
+                onClick={() => navigate('/migrate')}
                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -154,7 +154,7 @@ const HistoryPage: React.FC = () => {
             </div>
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => navigate('/migration')}
+                onClick={() => navigate('/migrate')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 New Migration
