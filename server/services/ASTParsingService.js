@@ -56,6 +56,24 @@ class ASTParsingService {
         console.warn('⚠️ Java parser not available:', error.message);
       }
 
+      // Try to load Ruby parser
+      try {
+        const Ruby = await import('tree-sitter-ruby');
+        this.languages['.rb'] = Ruby.default;
+        console.log('✅ Ruby parser loaded');
+      } catch (error) {
+        console.warn('⚠️ Ruby parser not available:', error.message);
+      }
+
+      // Try to load PHP parser
+      try {
+        const PHP = await import('tree-sitter-php');
+        this.languages['.php'] = PHP.default;
+        console.log('✅ PHP parser loaded');
+      } catch (error) {
+        console.warn('⚠️ PHP parser not available:', error.message);
+      }
+
       this.initialized = true;
       console.log(`✅ AST Parsing Service initialized with ${Object.keys(this.languages).length} language parsers`);
     } catch (error) {

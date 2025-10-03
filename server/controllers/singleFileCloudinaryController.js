@@ -14,6 +14,8 @@ function isCodeFile(extension) {
     // Core languages
     '.js', '.ts', '.jsx', '.tsx', '.py', '.py2', '.py3', '.java', '.cpp', '.c', '.cs', 
     '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala',
+    // Database files
+    '.sql', '.sqlite', '.db', '.json', '.cql',
     // Objective-C
     '.m', '.mm', '.h',
     // Frontend frameworks
@@ -92,7 +94,7 @@ export const uploadSingleFileToCloudinary = async (req, res) => {
       let resourceType = 'raw';
       
       // Force code files to be uploaded as raw files regardless of MIME type
-      const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.m', '.mm', '.h'];
+      const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.m', '.mm', '.h', '.sql', '.sqlite', '.db', '.json', '.cql'];
       const isCodeFile = codeExtensions.includes(fileExtension.toLowerCase());
       
       if (isCodeFile) {
@@ -164,6 +166,14 @@ export const uploadSingleFileToCloudinary = async (req, res) => {
         correctMimeType = 'text/x-kotlin';
       } else if (extension === '.m' || extension === '.mm') {
         correctMimeType = 'text/x-objc';
+      } else if (extension === '.sql') {
+        correctMimeType = 'application/sql';
+      } else if (extension === '.sqlite' || extension === '.db') {
+        correctMimeType = 'application/x-sqlite3';
+      } else if (extension === '.json') {
+        correctMimeType = 'application/json';
+      } else if (extension === '.cql') {
+        correctMimeType = 'text/plain';
       } else {
         correctMimeType = 'text/plain';
       }

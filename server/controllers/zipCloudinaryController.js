@@ -153,6 +153,8 @@ function isCodeFile(extension) {
     // Core languages
     '.js', '.ts', '.jsx', '.tsx', '.py', '.py2', '.py3', '.java', '.cpp', '.c', '.cs', 
     '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala',
+    // Database files
+    '.sql', '.sqlite', '.db', '.json', '.cql',
     // Objective-C
     '.m', '.mm', '.h',
     // Frontend frameworks

@@ -86,7 +86,303 @@ class LanguageDetectionService {
           /jquery\.js|jquery\.min\.js|cdn\.jquery/i
         ],
         priority: 70
-      }
+      },
+      // Backend Platform Frameworks
+      wordpress: {
+        extensions: ['.php'],
+        contentPatterns: [
+          /wp_/,
+          /get_header\(\)|get_footer\(\)|get_sidebar\(\)/,
+          /the_content\(\)|the_title\(\)|the_excerpt\(\)/,
+          /add_action\s*\(|add_filter\s*\(/,
+          /wp-config\.php|wp-content|wp-includes/,
+          /WP_Query|wp_query/,
+          /\$wpdb/
+        ],
+        priority: 90
+      },
+      laravel: {
+        extensions: ['.php'],
+        contentPatterns: [
+          /use\s+Illuminate\\/,
+          /Artisan::|Route::|Schema::/,
+          /class\s+\w+\s+extends\s+(Controller|Model|Middleware)/,
+          /@extends\s*\(|@section\s*\(|@yield\s*\(/,
+          /composer\.json|artisan/,
+          /App\\|config\//
+        ],
+        priority: 85
+      },
+      nodejs: {
+        extensions: ['.js'],
+        contentPatterns: [
+          /require\s*\(['"][\w\-\/]+['"]\)/,
+          /module\.exports\s*=/,
+          /process\.env/,
+          /__dirname|__filename/,
+          /npm\s+install|package\.json/,
+          /const\s+\w+\s*=\s*require/
+        ],
+        priority: 75
+      },
+      express: {
+        extensions: ['.js'],
+        contentPatterns: [
+          /require\s*\(['"]express['"]\)/,
+          /app\.get\s*\(|app\.post\s*\(|app\.put\s*\(|app\.delete\s*\(/,
+          /res\.json\s*\(|res\.send\s*\(|res\.render\s*\(/,
+          /app\.listen\s*\(/,
+          /express\(\)/,
+          /middleware/i
+        ],
+        priority: 80
+      },
+      nestjs: {
+        extensions: ['.ts'],
+        contentPatterns: [
+          /@Controller\s*\(|@Injectable\s*\(|@Module\s*\(/,
+          /import\s*{[^}]*}\s*from\s*['"]@nestjs/,
+          /@Get\s*\(|@Post\s*\(|@Put\s*\(|@Delete\s*\(/,
+          /NestFactory\.create/,
+          /nest\s+new|nest\s+generate/
+        ],
+        priority: 85
+      },
+      // Ruby Platform Frameworks
+      rails: {
+        extensions: ['.rb'],
+        contentPatterns: [
+          /class\s+\w+\s*<\s*ApplicationController/,
+          /class\s+\w+\s*<\s*ActiveRecord::Base/,
+          /class\s+\w+\s*<\s*ApplicationRecord/,
+          /Rails\.application/,
+          /config\/routes\.rb|config\/application\.rb/,
+          /ActiveRecord::|ActionController::|ActionView::/,
+          /has_many|belongs_to|has_one/,
+          /before_action|after_action/,
+          /render\s+(json|xml|html)/,
+          /redirect_to/,
+          /params\[/,
+          /flash\[/
+        ],
+        priority: 90
+      },
+      // Python Platform Frameworks
+      django: {
+        extensions: ['.py'],
+        contentPatterns: [
+          /from\s+django/,
+          /import\s+django/,
+          /django\.conf|django\.urls/,
+          /class\s+\w+\(models\.Model\)/,
+          /class\s+\w+\(forms\.Form\)/,
+          /class\s+\w+\(View\)/,
+          /HttpResponse|JsonResponse/,
+          /render\s*\(/,
+          /redirect\s*\(/,
+          /settings\.py|urls\.py|models\.py/,
+          /@login_required|@csrf_exempt/
+        ],
+        priority: 85
+      },
+      flask: {
+        extensions: ['.py'],
+        contentPatterns: [
+          /from\s+flask/,
+          /import\s+flask/,
+          /Flask\s*\(__name__\)/,
+          /@app\.route/,
+          /request\.form|request\.json/,
+          /render_template\s*\(/,
+          /jsonify\s*\(/,
+          /redirect\s*\(/,
+          /url_for\s*\(/,
+          /session\[/
+        ],
+        priority: 80
+      },
+      // Java Platform Frameworks
+      springboot: {
+        extensions: ['.java'],
+        contentPatterns: [
+          /@SpringBootApplication/,
+          /@RestController|@Controller/,
+          /@Service|@Repository|@Component/,
+          /@Autowired|@Inject/,
+          /@RequestMapping|@GetMapping|@PostMapping|@PutMapping|@DeleteMapping/,
+          /spring-boot-starter/,
+          /SpringApplication\.run/,
+          /@EnableAutoConfiguration/,
+          /@ComponentScan/,
+          /application\.properties|application\.yml/
+        ],
+        priority: 90
+      },
+      spring: {
+        extensions: ['.java'],
+        contentPatterns: [
+          /@Controller|@RestController/,
+          /@Service|@Repository|@Component/,
+          /@Autowired|@Qualifier/,
+          /@RequestMapping|@ResponseBody/,
+          /ApplicationContext|BeanFactory/,
+          /org\.springframework/,
+          /@Configuration|@Bean/,
+          /@Transactional/,
+          /DispatcherServlet/
+        ],
+        priority: 85
+      },
+      // Go Platform Frameworks
+      gin: {
+        extensions: ['.go'],
+        contentPatterns: [
+          /gin\.Default\(\)|gin\.New\(\)/,
+          /router\.GET|router\.POST|router\.PUT|router\.DELETE/,
+          /gin\.Context/,
+          /c\.JSON\(|c\.String\(|c\.HTML\(/,
+          /gin\.H\{/,
+          /github\.com\/gin-gonic\/gin/,
+          /router\.Use\(/,
+          /gin\.Recovery\(\)|gin\.Logger\(\)/
+        ],
+        priority: 85
+      },
+      echo: {
+        extensions: ['.go'],
+        contentPatterns: [
+          /echo\.New\(\)/,
+          /e\.GET|e\.POST|e\.PUT|e\.DELETE/,
+          /echo\.Context/,
+          /c\.JSON\(|c\.String\(|c\.HTML\(/,
+          /github\.com\/labstack\/echo/,
+          /e\.Use\(/,
+          /middleware\./
+        ],
+        priority: 80
+      },
+      fiber: {
+        extensions: ['.go'],
+        contentPatterns: [
+          /fiber\.New\(\)/,
+          /app\.Get|app\.Post|app\.Put|app\.Delete/,
+          /fiber\.Ctx/,
+          /c\.JSON\(|c\.SendString\(/,
+          /github\.com\/gofiber\/fiber/,
+          /app\.Use\(/,
+          /fiber\.Map\{/
+        ],
+        priority: 80
+      },
+      
+      // API Paradigms
+      rest: {
+        extensions: ['.js', '.ts', '.py', '.java', '.cs', '.rb', '.go', '.php'],
+        contentPatterns: [
+          /app\.(get|post|put|delete|patch)\(/,
+          /@RestController|@RequestMapping/,
+          /@(Get|Post|Put|Delete|Patch)Mapping/,
+          /from rest_framework/,
+          /\[Http(Get|Post|Put|Delete)\]/,
+          /\/api\/|\/v1\/|\/v2\//,
+          /ResponseEntity</,
+          /@api_view/,
+          /router\.(get|post|put|delete|patch)\(/,
+          /express\.Router\(\)/
+        ],
+        priority: 80
+      },
+      graphql: {
+        extensions: ['.js', '.ts', '.graphql', '.gql', '.py', '.java', '.cs', '.rb', '.go'],
+        contentPatterns: [
+          /type\s+\w+\s*{/,
+          /query\s+\w*\s*{|mutation\s+\w*\s*{/,
+          /from ['"]graphql['"]/,
+          /@Resolver|@Query|@Mutation|@Subscription/,
+          /apollo-server|graphql-yoga/,
+          /buildSchema|makeExecutableSchema/,
+          /gql`|graphql`/,
+          /useQuery|useMutation|useSubscription/,
+          /GraphQLSchema|GraphQLObjectType/,
+          /input\s+\w+\s*{|interface\s+\w+\s*{/
+        ],
+        priority: 90
+      },
+      
+      // Database Systems
+      mysql: {
+        extensions: ['.sql', '.js', '.py', '.java', '.php', '.rb', '.go', '.cs'],
+        contentPatterns: [
+          /CREATE TABLE.*ENGINE\s*=\s*InnoDB/i,
+          /AUTO_INCREMENT/i,
+          /VARCHAR\(\d+\)/i,
+          /mysql:\/\/|jdbc:mysql/i,
+          /ENGINE=MyISAM|ENGINE=InnoDB/i,
+          /mysql\.createConnection/i,
+          /SHOW TABLES|DESCRIBE/i,
+          /CHARSET=utf8/i
+        ],
+        priority: 90
+      },
+      postgresql: {
+        extensions: ['.sql', '.js', '.py', '.java', '.php', '.rb', '.go', '.cs'],
+        contentPatterns: [
+          /CREATE TABLE.*SERIAL/i,
+          /SERIAL PRIMARY KEY/i,
+          /JSONB|JSON/i,
+          /ARRAY\[.*\]/i,
+          /postgresql:\/\/|jdbc:postgresql/i,
+          /RETURNING \*/i,
+          /ILIKE|SIMILAR TO/i,
+          /CREATE EXTENSION/i,
+          /SELECT.*FROM pg_/i
+        ],
+        priority: 90
+      },
+      mongodb: {
+        extensions: ['.js', '.py', '.java', '.cs', '.rb', '.go', '.json'],
+        contentPatterns: [
+          /db\.\w+\.find\(/i,
+          /db\.\w+\.insert\(/i,
+          /db\.\w+\.update\(/i,
+          /db\.\w+\.aggregate\(/i,
+          /ObjectId\(/i,
+          /mongodb:\/\/|mongodb\+srv:\/\//i,
+          /mongoose\./i,
+          /MongoClient/i,
+          /\$set|\$push|\$pull/i,
+          /collection\./i
+        ],
+        priority: 90
+      },
+      sqlite: {
+        extensions: ['.sql', '.db', '.sqlite', '.js', '.py', '.java', '.cs'],
+        contentPatterns: [
+          /sqlite3\./i,
+          /PRAGMA/i,
+          /sqlite:\/\/|jdbc:sqlite/i,
+          /AUTOINCREMENT/i,
+          /sqlite3\.connect/i,
+          /INTEGER PRIMARY KEY/i,
+          /\.execute\(.*CREATE TABLE/i
+        ],
+        priority: 85
+      },
+      redis: {
+        extensions: ['.js', '.py', '.java', '.cs', '.rb', '.go'],
+        contentPatterns: [
+          /redis\./i,
+          /SET\s+\w+|GET\s+\w+/i,
+          /HSET|HGET|HMSET/i,
+          /LPUSH|RPUSH|LPOP/i,
+          /SADD|SMEMBERS/i,
+          /redis:\/\/|redis\.createClient/i,
+          /EXPIRE|TTL/i,
+          /ZADD|ZRANGE/i
+        ],
+        priority: 85
+      },
+      
     };
 
     // Language/Syntax detection patterns (Level 2)
@@ -130,6 +426,65 @@ class LanguageDetectionService {
           /interface\s+\w+/,
           /:\s*React\./
         ]
+      },
+      php: {
+        extensions: ['.php'],
+        contentPatterns: [
+          /<\?php/,
+          /\$\w+\s*=/,
+          /echo\s+|print\s+/,
+          /function\s+\w+\s*\(/,
+          /class\s+\w+/,
+          /->/,
+          /\$_GET|\$_POST|\$_SESSION/
+        ]
+      },
+      ruby: {
+        extensions: ['.rb'],
+        contentPatterns: [
+          /def\s+\w+/,
+          /class\s+\w+/,
+          /module\s+\w+/,
+          /end$/m,
+          /@\w+/,
+          /puts\s+|print\s+/,
+          /require\s+['"][^'"]+['"]/
+        ]
+      },
+      python: {
+        extensions: ['.py'],
+        contentPatterns: [
+          /def\s+\w+\s*\(/,
+          /class\s+\w+/,
+          /import\s+\w+/,
+          /from\s+\w+\s+import/,
+          /print\s*\(/,
+          /if\s+__name__\s*==\s*['"]__main__['"]/
+        ]
+      },
+      java: {
+        extensions: ['.java'],
+        contentPatterns: [
+          /public\s+class\s+\w+/,
+          /public\s+static\s+void\s+main/,
+          /import\s+java\./,
+          /System\.out\.println/,
+          /public\s+\w+\s+\w+\s*\(/,
+          /private\s+\w+\s+\w+/,
+          /package\s+[\w.]+/
+        ]
+      },
+      go: {
+        extensions: ['.go'],
+        contentPatterns: [
+          /package\s+\w+/,
+          /func\s+\w+\s*\(/,
+          /import\s+\(/,
+          /fmt\.Print/,
+          /var\s+\w+\s+\w+/,
+          /type\s+\w+\s+struct/,
+          /go\s+\w+\(/
+        ]
       }
     };
 
@@ -139,8 +494,11 @@ class LanguageDetectionService {
       '.jsx': 'javascript',
       '.ts': 'typescript',
       '.tsx': 'typescript',
+      '.php': 'php',
+      '.rb': 'ruby',
       '.py': 'python',
       '.java': 'java',
+      '.go': 'go',
       '.cs': 'csharp',
       '.swift': 'swift',
       '.kt': 'kotlin',
@@ -394,9 +752,42 @@ class LanguageDetectionService {
       { value: 'angular', label: 'Angular', tag: 'TS' },
       { value: 'angularjs', label: 'AngularJS', tag: 'JS' },
       { value: 'jquery', label: 'jQuery', tag: 'JS' },
+      // Backend Platform Languages
+      { value: 'php', label: 'PHP', tag: 'PHP' },
+      { value: 'wordpress', label: 'WordPress', tag: 'PHP' },
+      { value: 'laravel', label: 'Laravel', tag: 'PHP' },
+      { value: 'nodejs', label: 'Node.js', tag: 'JS' },
+      { value: 'express', label: 'Express.js', tag: 'JS' },
+      { value: 'nestjs', label: 'NestJS', tag: 'TS' },
+      // Ruby Platform Languages
+      { value: 'ruby', label: 'Ruby', tag: 'RB' },
+      { value: 'rails', label: 'Ruby on Rails', tag: 'RB' },
+      // Python Platform Languages
+      { value: 'django', label: 'Django', tag: 'PY' },
+      { value: 'flask', label: 'Flask', tag: 'PY' },
+      // Java Platform Languages
+      { value: 'java', label: 'Java', tag: 'JAVA' },
+      { value: 'spring', label: 'Spring Framework', tag: 'JAVA' },
+      { value: 'springboot', label: 'Spring Boot', tag: 'JAVA' },
+      // Go Platform Languages
+      { value: 'go', label: 'Go', tag: 'GO' },
+      { value: 'gin', label: 'Gin', tag: 'GO' },
+      { value: 'echo', label: 'Echo', tag: 'GO' },
+      { value: 'fiber', label: 'Fiber', tag: 'GO' },
+      // API Paradigms
+      { value: 'rest', label: 'REST API', tag: 'REST' },
+      { value: 'graphql', label: 'GraphQL', tag: 'GQL' },
+      // Database Systems
+      { value: 'mysql', label: 'MySQL', tag: 'SQL' },
+      { value: 'postgresql', label: 'PostgreSQL', tag: 'SQL' },
+      { value: 'mongodb', label: 'MongoDB', tag: 'NoSQL' },
+      { value: 'sqlite', label: 'SQLite', tag: 'SQL' },
+      { value: 'redis', label: 'Redis', tag: 'KV' },
+      { value: 'cassandra', label: 'Cassandra', tag: 'NoSQL' },
+      { value: 'dynamodb', label: 'DynamoDB', tag: 'NoSQL' },
+      { value: 'elasticsearch', label: 'Elasticsearch', tag: 'SEARCH' },
       { value: 'python2', label: 'Python 2', tag: 'PY2' },
       { value: 'python3', label: 'Python 3', tag: 'PY3' },
-      { value: 'java', label: 'Java', tag: 'JAVA' },
       { value: 'kotlin', label: 'Kotlin', tag: 'KT' },
       { value: 'swift', label: 'Swift', tag: 'SWIFT' },
       { value: 'objc', label: 'Objective-C', tag: 'OBJC' },

@@ -36,7 +36,7 @@ const MigrationPage: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [originalFiles, setOriginalFiles] = useState<{ [key: string]: string }>({});
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
-
+  
   // Enhanced two-level language detection
   const detectLanguageAndSetTarget = (filename: string, content: string) => {
     // Only auto-detect if user hasn't manually selected languages
@@ -66,20 +66,20 @@ const MigrationPage: React.FC = () => {
       const extension = filename.split('.').pop()?.toLowerCase();
       
       // Language detection based on file extension and content for non-React files
-      if (extension === 'py') {
-        // Check for Python 2 vs Python 3 patterns
-        if (content.includes('print ') && !content.includes('print(')) {
-          setFromLanguage('python2');
-          setToLanguage('python3');
-          detectedFrom = 'Python 2';
-          detectedTo = 'Python 3';
-        } else {
-          setFromLanguage('python');
-          setToLanguage('python3');
-          detectedFrom = 'Python';
-          detectedTo = 'Python 3';
-        }
-      } else if (extension === 'js') {
+    if (extension === 'py') {
+      // Check for Python 2 vs Python 3 patterns
+      if (content.includes('print ') && !content.includes('print(')) {
+        setFromLanguage('python2');
+        setToLanguage('python3');
+        detectedFrom = 'Python 2';
+        detectedTo = 'Python 3';
+      } else {
+        setFromLanguage('python');
+        setToLanguage('python3');
+        detectedFrom = 'Python';
+        detectedTo = 'Python 3';
+      }
+    } else if (extension === 'js') {
       // Use enhanced framework detection for JavaScript files
       const detectedFramework = detectFrontendFramework(filename, content);
       console.log(`🔍 Detected framework for ${filename}: ${detectedFramework}`);
@@ -116,11 +116,6 @@ const MigrationPage: React.FC = () => {
         detectedFrom = 'JavaScript';
         detectedTo = 'TypeScript';
       }
-    } else if (extension === 'java') {
-      setFromLanguage('java');
-      setToLanguage('kotlin');
-      detectedFrom = 'Java';
-      detectedTo = 'Kotlin';
     } else if (extension === 'm' || extension === 'mm') {
       setFromLanguage('objc');
       setToLanguage('swift');
@@ -151,6 +146,90 @@ const MigrationPage: React.FC = () => {
       setToLanguage('react');
       detectedFrom = 'Vue.js';
       detectedTo = 'React';
+    } else if (extension === 'php') {
+      // Use enhanced framework detection for PHP files
+      const detectedFramework = detectPHPFramework(filename, content);
+      console.log(`🔍 Detected PHP framework for ${filename}: ${detectedFramework}`);
+      
+      if (detectedFramework === 'wordpress') {
+        setFromLanguage('wordpress');
+        setToLanguage('express');
+        detectedFrom = 'WordPress';
+        detectedTo = 'Express.js';
+      } else if (detectedFramework === 'laravel') {
+        setFromLanguage('laravel');
+        setToLanguage('nestjs');
+        detectedFrom = 'Laravel';
+        detectedTo = 'NestJS';
+      } else {
+        setFromLanguage('php');
+        setToLanguage('nodejs');
+        detectedFrom = 'PHP';
+        detectedTo = 'Node.js';
+      }
+    } else if (extension === 'rb') {
+      // Use enhanced framework detection for Ruby files
+      const detectedFramework = detectRubyFramework(filename, content);
+      console.log(`🔍 Detected Ruby framework for ${filename}: ${detectedFramework}`);
+      
+      if (detectedFramework === 'rails') {
+        setFromLanguage('rails');
+        setToLanguage('django');
+        detectedFrom = 'Ruby on Rails';
+        detectedTo = 'Django';
+      } else {
+        setFromLanguage('ruby');
+        setToLanguage('python3');
+        detectedFrom = 'Ruby';
+        detectedTo = 'Python 3';
+      }
+    } else if (extension === 'java') {
+      // Use enhanced framework detection for Java files
+      const detectedFramework = detectJavaFramework(filename, content);
+      console.log(`🔍 Detected Java framework for ${filename}: ${detectedFramework}`);
+      
+      if (detectedFramework === 'springboot') {
+        setFromLanguage('springboot');
+        setToLanguage('gin');
+        detectedFrom = 'Spring Boot';
+        detectedTo = 'Gin';
+      } else if (detectedFramework === 'spring') {
+        setFromLanguage('spring');
+        setToLanguage('go');
+        detectedFrom = 'Spring Framework';
+        detectedTo = 'Go';
+      } else {
+        setFromLanguage('java');
+        setToLanguage('go');
+        detectedFrom = 'Java';
+        detectedTo = 'Go';
+      }
+    } else if (extension === 'go') {
+      // Use enhanced framework detection for Go files
+      const detectedFramework = detectGoFramework(filename, content);
+      console.log(`🔍 Detected Go framework for ${filename}: ${detectedFramework}`);
+      
+      if (detectedFramework === 'gin') {
+        setFromLanguage('gin');
+        setToLanguage('springboot');
+        detectedFrom = 'Gin';
+        detectedTo = 'Spring Boot';
+      } else if (detectedFramework === 'echo') {
+        setFromLanguage('echo');
+        setToLanguage('spring');
+        detectedFrom = 'Echo';
+        detectedTo = 'Spring Framework';
+      } else if (detectedFramework === 'fiber') {
+        setFromLanguage('fiber');
+        setToLanguage('express');
+        detectedFrom = 'Fiber';
+        detectedTo = 'Express.js';
+      } else {
+        setFromLanguage('go');
+        setToLanguage('java');
+        detectedFrom = 'Go';
+        detectedTo = 'Java';
+      }
     } else if (extension === 'html') {
       // Use enhanced framework detection for HTML files
       const detectedFramework = detectFrontendFramework(filename, content);
@@ -178,6 +257,67 @@ const MigrationPage: React.FC = () => {
         detectedFrom = 'AngularJS';
         detectedTo = 'React';
       }
+    }
+    
+    // Check for database systems first (prioritize for database file extensions)
+    if (!detectedFrom && !detectedTo) {
+      const detectedDB = detectDatabase(filename, content);
+      
+      if (detectedDB) {
+        setFromLanguage(detectedDB);
+        // Set appropriate target based on detected database
+        if (detectedDB === 'mysql') {
+          setToLanguage('postgresql');
+          detectedFrom = 'MySQL';
+          detectedTo = 'PostgreSQL';
+        } else if (detectedDB === 'postgresql') {
+          setToLanguage('mongodb');
+          detectedFrom = 'PostgreSQL';
+          detectedTo = 'MongoDB';
+        } else if (detectedDB === 'mongodb') {
+          setToLanguage('postgresql');
+          detectedFrom = 'MongoDB';
+          detectedTo = 'PostgreSQL';
+        } else if (detectedDB === 'sqlite') {
+          setToLanguage('postgresql');
+          detectedFrom = 'SQLite';
+          detectedTo = 'PostgreSQL';
+        } else if (detectedDB === 'redis') {
+          setToLanguage('mongodb');
+          detectedFrom = 'Redis';
+          detectedTo = 'MongoDB';
+        } else {
+          setToLanguage('postgresql');
+          detectedFrom = detectedDB.charAt(0).toUpperCase() + detectedDB.slice(1);
+          detectedTo = 'PostgreSQL';
+        }
+      }
+      
+      // If no database detected, check for API paradigms
+      if (!detectedFrom && !detectedTo) {
+        const detectedREST = detectRESTAPI(filename, content);
+        const detectedGraphQL = detectGraphQL(filename, content);
+        
+        if (detectedREST) {
+          setFromLanguage('rest');
+          setToLanguage('graphql');
+          detectedFrom = 'REST API';
+          detectedTo = 'GraphQL';
+        } else if (detectedGraphQL) {
+          setFromLanguage('graphql');
+          setToLanguage('rest');
+          detectedFrom = 'GraphQL';
+          detectedTo = 'REST API';
+        }
+      }
+    }
+    
+    // Handle GraphQL schema files specifically
+    if (extension === 'graphql' || extension === 'gql') {
+      setFromLanguage('graphql');
+      setToLanguage('rest');
+      detectedFrom = 'GraphQL';
+      detectedTo = 'REST API';
     }
     }
     
@@ -224,6 +364,24 @@ const MigrationPage: React.FC = () => {
 
   // Framework detection (Level 1)
   const detectFramework = (_filename: string, content: string, extension: string) => {
+    // First check for backend languages by extension
+    if (extension === 'java') {
+      return { name: 'java', confidence: 0.9 };
+    }
+    if (extension === 'php') {
+      return { name: 'php', confidence: 0.9 };
+    }
+    if (extension === 'rb') {
+      return { name: 'ruby', confidence: 0.9 };
+    }
+    if (extension === 'go') {
+      return { name: 'go', confidence: 0.9 };
+    }
+    if (extension === 'py') {
+      return { name: 'python', confidence: 0.9 };
+    }
+    
+    
     const frameworkPatterns = {
       react: {
         extensions: ['.jsx', '.tsx'],
@@ -284,6 +442,92 @@ const MigrationPage: React.FC = () => {
           /\.ready\s*\(|\.ajax\s*\(|\.fadeIn\s*\(/
         ],
         priority: 0.7
+      },
+      rest: {
+        extensions: ['.js', '.ts', '.py', '.java', '.cs', '.rb', '.go', '.php'],
+        patterns: [
+          /app\.(get|post|put|delete|patch)\(/,
+          /@RestController|@RequestMapping/,
+          /@(Get|Post|Put|Delete|Patch)Mapping/,
+          /from rest_framework/,
+          /\[Http(Get|Post|Put|Delete)\]/,
+          /\/api\/|\/v1\/|\/v2\//,
+          /ResponseEntity</,
+          /@api_view/
+        ],
+        priority: 0.8
+      },
+      graphql: {
+        extensions: ['.js', '.ts', '.graphql', '.gql', '.py', '.java', '.cs', '.rb', '.go'],
+        patterns: [
+          /type\s+\w+\s*{/,
+          /query\s+\w*\s*{|mutation\s+\w*\s*{/,
+          /from ['"]graphql['"]/,
+          /@Resolver|@Query|@Mutation/,
+          /apollo-server|graphql-yoga/,
+          /buildSchema|makeExecutableSchema/,
+          /gql`|graphql`/,
+          /useQuery|useMutation/
+        ],
+        priority: 0.9
+      },
+      mysql: {
+        extensions: ['.sql', '.js', '.py', '.java', '.php', '.rb', '.go', '.cs'],
+        patterns: [
+          /CREATE TABLE.*ENGINE\s*=\s*InnoDB/i,
+          /AUTO_INCREMENT/i,
+          /VARCHAR\(\d+\)/i,
+          /mysql:\/\/|jdbc:mysql/i,
+          /ENGINE=MyISAM|ENGINE=InnoDB/i,
+          /mysql\.createConnection/i
+        ],
+        priority: 0.9
+      },
+      postgresql: {
+        extensions: ['.sql', '.js', '.py', '.java', '.php', '.rb', '.go', '.cs'],
+        patterns: [
+          /CREATE TABLE.*SERIAL/i,
+          /JSONB|JSON/i,
+          /postgresql:\/\/|jdbc:postgresql/i,
+          /RETURNING \*/i,
+          /ILIKE|SIMILAR TO/i,
+          /CREATE EXTENSION/i
+        ],
+        priority: 0.9
+      },
+      mongodb: {
+        extensions: ['.js', '.py', '.java', '.cs', '.rb', '.go', '.json'],
+        patterns: [
+          /db\.\w+\.find\(/i,
+          /db\.\w+\.insert\(/i,
+          /ObjectId\(/i,
+          /mongodb:\/\/|mongodb\+srv:\/\//i,
+          /mongoose\./i,
+          /\$set|\$push|\$pull/i
+        ],
+        priority: 0.9
+      },
+      sqlite: {
+        extensions: ['.sql', '.db', '.sqlite', '.js', '.py', '.java', '.cs'],
+        patterns: [
+          /sqlite3\./i,
+          /PRAGMA/i,
+          /sqlite:\/\/|jdbc:sqlite/i,
+          /AUTOINCREMENT/i,
+          /INTEGER PRIMARY KEY/i
+        ],
+        priority: 0.8
+      },
+      redis: {
+        extensions: ['.js', '.py', '.java', '.cs', '.rb', '.go'],
+        patterns: [
+          /redis\./i,
+          /SET\s+\w+|GET\s+\w+/i,
+          /HSET|HGET|HMSET/i,
+          /redis:\/\/|redis\.createClient/i,
+          /EXPIRE|TTL/i
+        ],
+        priority: 0.8
       }
     };
 
@@ -346,6 +590,62 @@ const MigrationPage: React.FC = () => {
           /function\s+\w+/,
           /=>\s*{/
         ]
+      },
+      java: {
+        extensions: ['.java'],
+        patterns: [
+          /public\s+class\s+\w+/,
+          /public\s+static\s+void\s+main/,
+          /import\s+java\./,
+          /System\.out\.println/,
+          /public\s+\w+\s+\w+\s*\(/,
+          /private\s+\w+\s+\w+/,
+          /package\s+[\w.]+/
+        ]
+      },
+      php: {
+        extensions: ['.php'],
+        patterns: [
+          /<\?php/,
+          /\$\w+/,
+          /function\s+\w+/,
+          /class\s+\w+/,
+          /echo\s+/,
+          /require_once|include_once/
+        ]
+      },
+      ruby: {
+        extensions: ['.rb'],
+        patterns: [
+          /def\s+\w+/,
+          /class\s+\w+/,
+          /module\s+\w+/,
+          /end$/m,
+          /@\w+/,
+          /puts\s+|print\s+/
+        ]
+      },
+      go: {
+        extensions: ['.go'],
+        patterns: [
+          /package\s+\w+/,
+          /func\s+\w+/,
+          /import\s+/,
+          /fmt\.Print/,
+          /var\s+\w+\s+\w+/,
+          /type\s+\w+\s+struct/
+        ]
+      },
+      python: {
+        extensions: ['.py'],
+        patterns: [
+          /def\s+\w+/,
+          /class\s+\w+/,
+          /import\s+\w+/,
+          /from\s+\w+\s+import/,
+          /print\s*\(/,
+          /if\s+__name__\s*==\s*['"']__main__['"']/
+        ]
       }
     };
 
@@ -375,7 +675,12 @@ const MigrationPage: React.FC = () => {
         'jsx': 'jsx', 
         'ts': 'typescript',
         'js': 'javascript',
-        'vue': 'vue'
+        'vue': 'vue',
+        'java': 'java',
+        'php': 'php',
+        'rb': 'ruby',
+        'go': 'go',
+        'py': 'python'
       };
       
       const fallback = extensionMap[extension];
@@ -437,9 +742,18 @@ const MigrationPage: React.FC = () => {
     '.jsx': 'react', // React JSX files
     '.ts': 'typescript',
     '.tsx': 'react', // React TypeScript files
+    '.php': 'php', // PHP files
+    '.rb': 'ruby', // Ruby files
     '.py': 'python3',
     '.py2': 'python2',
-    '.java': 'java',
+    '.java': 'java', // Java files
+    '.go': 'go',
+    '.graphql': 'graphql',
+    '.gql': 'graphql',
+    '.sql': 'mysql', // Default SQL files to MySQL
+    '.db': 'sqlite',
+    '.sqlite': 'sqlite',
+    '.cql': 'cassandra', // Cassandra Query Language files
     '.kt': 'kotlin',
     '.cs': 'csharp',
     '.swift': 'swift',
@@ -836,6 +1150,475 @@ const MigrationPage: React.FC = () => {
     return null;
   };
 
+  // PHP Framework Detection
+  const detectPHPFramework = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting PHP framework for ${filename}`);
+    
+    // WordPress detection patterns
+    const wordpressPatterns = [
+      /wp_/,
+      /get_header\(\)|get_footer\(\)|get_sidebar\(\)/,
+      /the_content\(\)|the_title\(\)|the_excerpt\(\)/,
+      /add_action\s*\(|add_filter\s*\(/,
+      /wp-config\.php|wp-content|wp-includes/,
+      /WP_Query|wp_query/,
+      /\$wpdb/
+    ];
+    
+    // Laravel detection patterns
+    const laravelPatterns = [
+      /use\s+Illuminate\\/,
+      /Artisan::|Route::|Schema::/,
+      /class\s+\w+\s+extends\s+(Controller|Model|Middleware)/,
+      /@extends\s*\(|@section\s*\(|@yield\s*\(/,
+      /composer\.json|artisan/,
+      /App\\|config\//
+    ];
+    
+    // Count WordPress patterns
+    const wordpressMatches = wordpressPatterns.filter(pattern => pattern.test(content)).length;
+    
+    // Count Laravel patterns  
+    const laravelMatches = laravelPatterns.filter(pattern => pattern.test(content)).length;
+    
+    console.log(`🔍 WordPress patterns: ${wordpressMatches}, Laravel patterns: ${laravelMatches}`);
+    
+    // Require at least 2 patterns to confirm framework
+    if (wordpressMatches >= 2) {
+      console.log(`✅ Detected WordPress (${wordpressMatches} patterns)`);
+      return 'wordpress';
+    }
+    
+    if (laravelMatches >= 2) {
+      console.log(`✅ Detected Laravel (${laravelMatches} patterns)`);
+      return 'laravel';
+    }
+    
+    // If no specific framework detected, return generic PHP
+    console.log(`✅ Detected generic PHP`);
+    return 'php';
+  };
+
+  // Ruby Framework Detection
+  const detectRubyFramework = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting Ruby framework for ${filename}`);
+    
+    // Rails detection patterns
+    const railsPatterns = [
+      /class\s+\w+\s*<\s*ApplicationController/,
+      /class\s+\w+\s*<\s*ActiveRecord::Base/,
+      /class\s+\w+\s*<\s*ApplicationRecord/,
+      /Rails\.application/,
+      /config\/routes\.rb|config\/application\.rb/,
+      /ActiveRecord::|ActionController::|ActionView::/,
+      /has_many|belongs_to|has_one/,
+      /before_action|after_action/,
+      /render\s+(json|xml|html)/,
+      /redirect_to/,
+      /params\[/,
+      /flash\[/
+    ];
+    
+    // Count Rails patterns
+    const railsMatches = railsPatterns.filter(pattern => pattern.test(content)).length;
+    
+    console.log(`🔍 Rails patterns: ${railsMatches}`);
+    
+    // Require at least 2 patterns to confirm Rails
+    if (railsMatches >= 2) {
+      console.log(`✅ Detected Ruby on Rails (${railsMatches} patterns)`);
+      return 'rails';
+    }
+    
+    // If no specific framework detected, return generic Ruby
+    console.log(`✅ Detected generic Ruby`);
+    return 'ruby';
+  };
+
+  // Java Framework Detection
+  const detectJavaFramework = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting Java framework for ${filename}`);
+    
+    // Spring Boot detection patterns
+    const springBootPatterns = [
+      /@SpringBootApplication/,
+      /@RestController|@Controller/,
+      /@Service|@Repository|@Component/,
+      /@Autowired|@Inject/,
+      /@RequestMapping|@GetMapping|@PostMapping|@PutMapping|@DeleteMapping/,
+      /spring-boot-starter/,
+      /SpringApplication\.run/,
+      /@EnableAutoConfiguration/,
+      /@ComponentScan/,
+      /application\.properties|application\.yml/
+    ];
+    
+    // Spring Framework detection patterns
+    const springPatterns = [
+      /@Controller|@RestController/,
+      /@Service|@Repository|@Component/,
+      /@Autowired|@Qualifier/,
+      /@RequestMapping|@ResponseBody/,
+      /ApplicationContext|BeanFactory/,
+      /org\.springframework/,
+      /@Configuration|@Bean/,
+      /@Transactional/,
+      /DispatcherServlet/
+    ];
+    
+    // Count Spring Boot patterns
+    const springBootMatches = springBootPatterns.filter(pattern => pattern.test(content)).length;
+    
+    // Count Spring patterns
+    const springMatches = springPatterns.filter(pattern => pattern.test(content)).length;
+    
+    console.log(`🔍 Spring Boot patterns: ${springBootMatches}, Spring patterns: ${springMatches}`);
+    
+    // Require at least 2 patterns to confirm framework
+    if (springBootMatches >= 2) {
+      console.log(`✅ Detected Spring Boot (${springBootMatches} patterns)`);
+      return 'springboot';
+    }
+    
+    if (springMatches >= 2) {
+      console.log(`✅ Detected Spring Framework (${springMatches} patterns)`);
+      return 'spring';
+    }
+    
+    // If no specific framework detected, return generic Java
+    console.log(`✅ Detected generic Java`);
+    return 'java';
+  };
+
+  // REST API Detection
+  const detectRESTAPI = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting REST API patterns for ${filename}`);
+    
+    const restPatterns = [
+      // Express.js REST patterns
+      /app\.(get|post|put|delete|patch)\(/,
+      /router\.(get|post|put|delete|patch)\(/,
+      /express\.Router\(\)/,
+      /@(Get|Post|Put|Delete|Patch)\(/,
+      
+      // Spring Boot REST patterns
+      /@RestController/,
+      /@RequestMapping/,
+      /@GetMapping|@PostMapping|@PutMapping|@DeleteMapping/,
+      /@PathVariable|@RequestParam|@RequestBody/,
+      /ResponseEntity</,
+      
+      // ASP.NET REST patterns
+      /\[HttpGet\]|\[HttpPost\]|\[HttpPut\]|\[HttpDelete\]/,
+      /ApiController/,
+      /IActionResult/,
+      
+      // Django REST patterns
+      /from rest_framework/,
+      /APIView|ViewSet/,
+      /serializers\./,
+      /@api_view/,
+      
+      // FastAPI patterns
+      /from fastapi/,
+      /@app\.(get|post|put|delete)/,
+      /FastAPI\(\)/,
+      
+      // General REST patterns
+      /\/api\/|\/v1\/|\/v2\//,
+      /Content-Type.*application\/json/,
+      /HTTP\/1\.|HTTP\/2/,
+      /status.*200|201|404|500/
+    ];
+    
+    const matches = restPatterns.filter(pattern => pattern.test(content)).length;
+    console.log(`🔍 REST API patterns found: ${matches}`);
+    
+    if (matches >= 3) {
+      console.log(`✅ Detected REST API (${matches} patterns)`);
+      return 'rest';
+    }
+    
+    return null;
+  };
+
+  // GraphQL Detection
+  const detectGraphQL = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting GraphQL patterns for ${filename}`);
+    
+    const graphqlPatterns = [
+      // GraphQL schema patterns
+      /type\s+\w+\s*{/,
+      /input\s+\w+\s*{/,
+      /interface\s+\w+\s*{/,
+      /union\s+\w+\s*=/,
+      /enum\s+\w+\s*{/,
+      /scalar\s+\w+/,
+      /extend\s+type/,
+      /directive\s+@\w+/,
+      
+      // GraphQL query/mutation patterns
+      /query\s+\w*\s*{/,
+      /mutation\s+\w*\s*{/,
+      /subscription\s+\w*\s*{/,
+      /fragment\s+\w+\s+on/,
+      
+      // GraphQL resolver patterns
+      /resolvers\s*[:=]/,
+      /Query\s*[:=]\s*{/,
+      /Mutation\s*[:=]\s*{/,
+      /Subscription\s*[:=]\s*{/,
+      
+      // GraphQL library imports
+      /from ['"]graphql['"]/,
+      /import.*graphql/,
+      /apollo-server|@apollo\/server/,
+      /graphql-yoga/,
+      /type-graphql/,
+      /@Resolver|@Query|@Mutation|@Subscription/,
+      /@Field|@ObjectType|@InputType/,
+      
+      // GraphQL tools
+      /buildSchema|makeExecutableSchema/,
+      /GraphQLSchema|GraphQLObjectType/,
+      /gql`|graphql`/,
+      /useQuery|useMutation|useSubscription/,
+      
+      // File extensions
+      /\.graphql|\.gql/
+    ];
+    
+    const matches = graphqlPatterns.filter(pattern => pattern.test(content)).length;
+    console.log(`🔍 GraphQL patterns found: ${matches}`);
+    
+    if (matches >= 3) {
+      console.log(`✅ Detected GraphQL (${matches} patterns)`);
+      return 'graphql';
+    }
+    
+    return null;
+  };
+
+  // Database Detection
+  const detectDatabase = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting database system for ${filename}`);
+    
+    // MySQL detection patterns
+    const mysqlPatterns = [
+      /CREATE TABLE.*ENGINE\s*=\s*InnoDB/i,
+      /AUTO_INCREMENT/i,
+      /ENGINE\s*=\s*(InnoDB|MyISAM)/i,
+      /TINYINT|MEDIUMINT|BIGINT/i,
+      /mysql_connect|mysqli_/i,
+      /SHOW TABLES|DESCRIBE/i,
+      /mysql:\/\/|jdbc:mysql/i,
+      /CHARSET\s*=\s*utf8/i,
+      /mysql\.createConnection/i,
+      /UNSIGNED\s+(INT|INTEGER|BIGINT)/i
+    ];
+    
+    // PostgreSQL detection patterns
+    const postgresqlPatterns = [
+      /SERIAL PRIMARY KEY/i,
+      /SERIAL\s+PRIMARY\s+KEY/i,
+      /\bSERIAL\b/i, // Any SERIAL keyword
+      /JSONB/i,
+      /\bREFERENCES\b/i, // Foreign key references
+      /->>/i, // JSON operators
+      /->/i, // JSON operators
+      /ARRAY\[.*\]/i,
+      /pg_connect|pg\./i,
+      /postgresql:\/\/|jdbc:postgresql/i,
+      /RETURNING \*/i,
+      /ILIKE|SIMILAR TO/i,
+      /CREATE EXTENSION/i,
+      /SELECT.*FROM pg_/i,
+      /CONSTRAINT.*FOREIGN KEY/i
+    ];
+    
+    // MongoDB detection patterns
+    const mongodbPatterns = [
+      /db\.\w+\.find\(/i,
+      /db\.\w+\.insert\(/i,
+      /db\.\w+\.update\(/i,
+      /db\.\w+\.aggregate\(/i,
+      /ObjectId\(/i,
+      /mongodb:\/\/|mongodb\+srv:\/\//i,
+      /mongoose\./i,
+      /MongoClient/i,
+      /\$set|\$push|\$pull/i,
+      /collection\./i,
+      /\.toArray\(\)/i
+    ];
+    
+    // SQLite detection patterns
+    const sqlitePatterns = [
+      /sqlite3\./i,
+      /\.db$|\.sqlite$/i,
+      /PRAGMA/i,
+      /sqlite:\/\/|jdbc:sqlite/i,
+      /AUTOINCREMENT/i,
+      /sqlite3\.connect/i,
+      /\.execute\(.*CREATE TABLE/i,
+      /INTEGER PRIMARY KEY/i
+    ];
+    
+    // Redis detection patterns
+    const redisPatterns = [
+      /redis\./i,
+      /SET\s+\w+|GET\s+\w+/i,
+      /HSET|HGET|HMSET/i,
+      /LPUSH|RPUSH|LPOP/i,
+      /SADD|SMEMBERS/i,
+      /redis:\/\/|redis\.createClient/i,
+      /EXPIRE|TTL/i,
+      /ZADD|ZRANGE/i,
+      /PUBLISH|SUBSCRIBE/i
+    ];
+    
+    // Cassandra detection patterns
+    const cassandraPatterns = [
+      /CREATE KEYSPACE/i,
+      /CREATE TABLE.*WITH/i,
+      /PRIMARY KEY.*\)/i,
+      /cassandra\./i,
+      /cql|CQL/i,
+      /SELECT.*FROM.*WHERE.*ALLOW FILTERING/i,
+      /CONSISTENCY/i,
+      /BATCH.*APPLY BATCH/i
+    ];
+    
+    // DynamoDB detection patterns
+    const dynamodbPatterns = [
+      /dynamodb\./i,
+      /aws-sdk.*DynamoDB/i,
+      /putItem|getItem|updateItem/i,
+      /scan\(|query\(/i,
+      /AttributeValue/i,
+      /TableName:/i,
+      /Key:/i,
+      /UpdateExpression/i,
+      /ConditionExpression/i
+    ];
+    
+    // Elasticsearch detection patterns
+    const elasticsearchPatterns = [
+      /"mappings"\s*:/i,
+      /"properties"\s*:/i,
+      /"type"\s*:\s*"(keyword|text|date|integer|float|boolean)"/i,
+      /"analyzer"\s*:/i,
+      /"format"\s*:\s*".*epoch_millis"/i,
+      /elasticsearch\./i,
+      /GET.*\/_search/i,
+      /POST.*\/_doc/i,
+      /PUT.*\/_mapping/i,
+      /query.*match/i,
+      /aggregations/i,
+      /bool.*must/i,
+      /index.*type/i,
+      /Client\(\{.*host/i,
+      /"settings"\s*:/i,
+      /"number_of_shards"/i,
+      /"number_of_replicas"/i
+    ];
+    
+    // Count pattern matches for each database
+    const databases = [
+      { name: 'mysql', patterns: mysqlPatterns },
+      { name: 'postgresql', patterns: postgresqlPatterns },
+      { name: 'mongodb', patterns: mongodbPatterns },
+      { name: 'sqlite', patterns: sqlitePatterns },
+      { name: 'redis', patterns: redisPatterns },
+      { name: 'cassandra', patterns: cassandraPatterns },
+      { name: 'dynamodb', patterns: dynamodbPatterns },
+      { name: 'elasticsearch', patterns: elasticsearchPatterns }
+    ];
+    
+    let bestMatch = { name: null as string | null, matches: 0 };
+    
+    for (const db of databases) {
+      const matches = db.patterns.filter(pattern => pattern.test(content)).length;
+      console.log(`🔍 ${db.name} patterns found: ${matches}`);
+      
+      if (matches > bestMatch.matches && matches >= 2) {
+        bestMatch = { name: db.name, matches };
+      }
+    }
+    
+    if (bestMatch.name) {
+      console.log(`✅ Detected ${bestMatch.name} database (${bestMatch.matches} patterns)`);
+      return bestMatch.name;
+    }
+    
+    return null;
+  };
+
+  // Go Framework Detection
+  const detectGoFramework = (filename: string, content: string): string | null => {
+    console.log(`🔍 Detecting Go framework for ${filename}`);
+    
+    // Gin detection patterns
+    const ginPatterns = [
+      /gin\.Default\(\)|gin\.New\(\)/,
+      /router\.GET|router\.POST|router\.PUT|router\.DELETE/,
+      /gin\.Context/,
+      /c\.JSON\(|c\.String\(|c\.HTML\(/,
+      /gin\.H\{/,
+      /github\.com\/gin-gonic\/gin/,
+      /router\.Use\(/,
+      /gin\.Recovery\(\)|gin\.Logger\(\)/
+    ];
+    
+    // Echo detection patterns
+    const echoPatterns = [
+      /echo\.New\(\)/,
+      /e\.GET|e\.POST|e\.PUT|e\.DELETE/,
+      /echo\.Context/,
+      /c\.JSON\(|c\.String\(|c\.HTML\(/,
+      /github\.com\/labstack\/echo/,
+      /e\.Use\(/,
+      /middleware\./
+    ];
+    
+    // Fiber detection patterns
+    const fiberPatterns = [
+      /fiber\.New\(\)/,
+      /app\.Get|app\.Post|app\.Put|app\.Delete/,
+      /fiber\.Ctx/,
+      /c\.JSON\(|c\.SendString\(/,
+      /github\.com\/gofiber\/fiber/,
+      /app\.Use\(/,
+      /fiber\.Map\{/
+    ];
+    
+    // Count framework patterns
+    const ginMatches = ginPatterns.filter(pattern => pattern.test(content)).length;
+    const echoMatches = echoPatterns.filter(pattern => pattern.test(content)).length;
+    const fiberMatches = fiberPatterns.filter(pattern => pattern.test(content)).length;
+    
+    console.log(`🔍 Gin patterns: ${ginMatches}, Echo patterns: ${echoMatches}, Fiber patterns: ${fiberMatches}`);
+    
+    // Require at least 2 patterns to confirm framework
+    if (ginMatches >= 2) {
+      console.log(`✅ Detected Gin (${ginMatches} patterns)`);
+      return 'gin';
+    }
+    
+    if (echoMatches >= 2) {
+      console.log(`✅ Detected Echo (${echoMatches} patterns)`);
+      return 'echo';
+    }
+    
+    if (fiberMatches >= 2) {
+      console.log(`✅ Detected Fiber (${fiberMatches} patterns)`);
+      return 'fiber';
+    }
+    
+    // If no specific framework detected, return generic Go
+    console.log(`✅ Detected generic Go`);
+    return 'go';
+  };
+
   // Get language from file extension
   const getLanguageFromFileExtension = (filename: string, content?: string): string | null => {
     const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
@@ -846,6 +1629,36 @@ const MigrationPage: React.FC = () => {
       if (detected) return detected;
     }
     
+    // Use enhanced detection for PHP files if content is available
+    if (content && extension === '.php') {
+      const detected = detectPHPFramework(filename, content);
+      if (detected) return detected;
+    }
+    
+    // Use enhanced detection for Ruby files if content is available
+    if (content && extension === '.rb') {
+      const detected = detectRubyFramework(filename, content);
+      if (detected) return detected;
+    }
+    
+    // Use enhanced detection for Java files if content is available
+    if (content && extension === '.java') {
+      const detected = detectJavaFramework(filename, content);
+      if (detected) return detected;
+    }
+    
+    // Use enhanced detection for Go files if content is available
+    if (content && extension === '.go') {
+      const detected = detectGoFramework(filename, content);
+      if (detected) return detected;
+    }
+    
+    // Use enhanced detection for SQL files if content is available
+    if (content && extension === '.sql') {
+      const detected = detectDatabase(filename, content);
+      if (detected) return detected;
+    }
+    
     return fileExtensionToLanguage[extension as keyof typeof fileExtensionToLanguage] || null;
   };
 
@@ -853,22 +1666,33 @@ const MigrationPage: React.FC = () => {
   const validateFileLanguageMatch = (filename: string, selectedLanguage: string, content?: string): boolean => {
     console.log(`🔍 Validating file: ${filename}, selected: ${selectedLanguage}, has content: ${!!content}`);
     
-    const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+      const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
     
     // Define flexible mapping - allow multiple valid options per file type
     const flexibleValidation: { [key: string]: string[] } = {
       '.tsx': ['react-ts', 'react-js', 'typescript', 'react'], // TSX files can be any React variant or TypeScript
       '.jsx': ['react-js', 'react-ts', 'javascript', 'react'], // JSX files can be any React variant or JavaScript
-      '.ts': ['typescript', 'react-ts', 'angular'], // TS files can be TypeScript, React with TS, or Angular
-      '.js': ['javascript', 'react-js', 'jquery', 'angularjs'], // JS files can be various JS variants
+      '.ts': ['typescript', 'react-ts', 'angular', 'nestjs', 'rest', 'graphql'], // TS files can be TypeScript, React with TS, Angular, NestJS, or API paradigms
+      '.js': ['javascript', 'react-js', 'jquery', 'angularjs', 'nodejs', 'express', 'serverless', 'rest', 'graphql', 'mongodb', 'redis'], // JS files can be various JS variants, Node.js, API paradigms, or database systems
       '.vue': ['vue'], // Vue files must be Vue
-      '.py': ['python2', 'python3'], // Python files can be either version
-      '.java': ['java'],
+      '.php': ['php', 'wordpress', 'laravel'], // PHP files can be general PHP, WordPress, or Laravel
+      '.rb': ['ruby', 'rails'], // Ruby files can be general Ruby or Rails
+      '.py': ['python2', 'python3', 'django', 'flask', 'rest', 'graphql'], // Python files can be Python versions, frameworks, or API paradigms
+      '.java': ['java', 'spring', 'springboot', 'rest', 'graphql'], // Java files can be general Java, Spring, Spring Boot, or API paradigms
+      '.go': ['go', 'gin', 'echo', 'fiber', 'rest', 'graphql'], // Go files can be general Go, Go frameworks, or API paradigms
+      '.graphql': ['graphql'], // GraphQL schema files
+      '.gql': ['graphql'], // GraphQL query files
       '.kt': ['kotlin'],
       '.cs': ['csharp'],
       '.swift': ['swift'],
       '.m': ['objc'],
-      '.html': ['angularjs', 'jquery']
+      '.html': ['angularjs', 'jquery'],
+      // Database files
+      '.sql': ['mysql', 'postgresql', 'sqlite'], // SQL files can be MySQL, PostgreSQL, or SQLite
+      '.json': ['mongodb', 'elasticsearch'], // JSON files can be MongoDB or Elasticsearch
+      '.db': ['sqlite'], // DB files are SQLite
+      '.sqlite': ['sqlite'], // SQLite files
+      '.cql': ['cassandra'], // Cassandra Query Language files
     };
     
     const validOptions = flexibleValidation[extension];
@@ -876,6 +1700,7 @@ const MigrationPage: React.FC = () => {
       console.log(`⚠️ Unknown file extension ${extension}, allowing validation to pass`);
       return true; // Allow unknown extensions
     }
+    
     
     const isValid = validOptions.includes(selectedLanguage);
     console.log(`✅ Flexible validation: ${extension} allows [${validOptions.join(', ')}], selected: ${selectedLanguage} = ${isValid}`);
@@ -888,7 +1713,6 @@ const MigrationPage: React.FC = () => {
     'typescript': ['javascript'],
     'python2': ['python3'],
     'python3': ['python2'],
-    'java': ['kotlin', 'csharp'],
     'kotlin': ['java'],
     'objc': ['swift'],
     'swift': ['objc'],
@@ -899,7 +1723,48 @@ const MigrationPage: React.FC = () => {
     'react-ts': ['react-js', 'vue', 'angular'], // React with TS → React with JS, or other frameworks
     'vue': ['react-js', 'react-ts', 'angular'], // Vue to React variants or Angular
     'angular': ['react-js', 'react-ts', 'vue'], // Angular to React variants or Vue
-    'angularjs': ['react-js', 'react-ts', 'vue', 'angular'] // AngularJS to modern frameworks
+    'angularjs': ['react-js', 'react-ts', 'vue', 'angular'], // AngularJS to modern frameworks
+    
+    // Backend Platform Migrations
+    'php': ['nodejs', 'express', 'nestjs'], // PHP to Node.js ecosystems
+    'wordpress': ['nodejs', 'express', 'nestjs'], // WordPress to Node.js frameworks
+    'laravel': ['nodejs', 'express', 'nestjs'], // Laravel to Node.js frameworks
+    'nodejs': ['php', 'laravel', 'nestjs', 'express', 'django', 'flask'], // Node.js to other backends or frameworks
+    'express': ['nestjs', 'laravel', 'nodejs', 'django', 'flask'], // Express to other frameworks
+    'nestjs': ['express', 'laravel', 'nodejs', 'django', 'flask'], // NestJS to other frameworks
+    
+    // Ruby Platform Migrations
+    'ruby': ['python3', 'nodejs', 'django', 'flask'], // Ruby to Python/Node.js
+    'rails': ['django', 'flask', 'nodejs', 'express', 'nestjs'], // Rails to Python/Node.js frameworks
+    
+    // Python Platform Migrations
+    'django': ['rails', 'nodejs', 'express', 'nestjs', 'flask'], // Django to other frameworks
+    'flask': ['rails', 'nodejs', 'express', 'nestjs', 'django'], // Flask to other frameworks
+    
+    // Java Platform Migrations
+    'java': ['go', 'nodejs', 'gin', 'echo', 'fiber', 'express', 'nestjs'], // Java to Go/Node.js
+    'spring': ['go', 'gin', 'echo', 'fiber', 'nodejs', 'express', 'nestjs'], // Spring to Go/Node.js frameworks
+    'springboot': ['go', 'gin', 'echo', 'fiber', 'nodejs', 'express', 'nestjs'], // Spring Boot to Go/Node.js frameworks
+    
+    // Go Platform Migrations
+    'go': ['java', 'spring', 'springboot', 'nodejs', 'express', 'nestjs'], // Go to Java/Node.js
+    'gin': ['java', 'spring', 'springboot', 'express', 'nestjs', 'echo', 'fiber'], // Gin to other frameworks
+    'echo': ['java', 'spring', 'springboot', 'express', 'nestjs', 'gin', 'fiber'], // Echo to other frameworks
+    'fiber': ['java', 'spring', 'springboot', 'express', 'nestjs', 'gin', 'echo'], // Fiber to other frameworks
+    
+    // API Paradigm Migrations
+    'rest': ['graphql'], // REST API to GraphQL
+    'graphql': ['rest'], // GraphQL to REST API
+    
+    // Database Migrations
+    'mysql': ['postgresql', 'mongodb', 'sqlite', 'dynamodb'], // MySQL to other databases
+    'postgresql': ['mysql', 'mongodb', 'sqlite', 'dynamodb'], // PostgreSQL to other databases
+    'mongodb': ['mysql', 'postgresql', 'sqlite', 'dynamodb'], // MongoDB to SQL/other NoSQL
+    'sqlite': ['mysql', 'postgresql', 'mongodb'], // SQLite to other databases
+    'redis': ['mongodb', 'dynamodb', 'cassandra'], // Redis to document/wide-column stores
+    'cassandra': ['mongodb', 'dynamodb', 'postgresql'], // Cassandra to other databases
+    'dynamodb': ['mongodb', 'mysql', 'postgresql'], // DynamoDB to other databases
+    'elasticsearch': ['mongodb', 'postgresql', 'mysql'], // Elasticsearch to other databases
   };
 
   // Validate if migration pair is valid
@@ -919,9 +1784,50 @@ const MigrationPage: React.FC = () => {
     { value: 'angular', label: 'Angular', tag: 'TS', isFramework: true },
     { value: 'angularjs', label: 'AngularJS', tag: 'JS', isFramework: true },
     { value: 'jquery', label: 'jQuery', tag: 'JS', isFramework: true },
+    
+    // Backend Platform Languages
+    { value: 'php', label: 'PHP', tag: 'PHP', description: 'General PHP code' },
+    { value: 'wordpress', label: 'WordPress', tag: 'PHP', description: 'WordPress themes/plugins', isFramework: true },
+    { value: 'laravel', label: 'Laravel', tag: 'PHP', description: 'Laravel framework', isFramework: true },
+    { value: 'nodejs', label: 'Node.js', tag: 'JS', description: 'Node.js backend', isFramework: true },
+    { value: 'express', label: 'Express.js', tag: 'JS', description: 'Express framework', isFramework: true },
+    { value: 'nestjs', label: 'NestJS', tag: 'TS', description: 'NestJS framework', isFramework: true },
+    
+    // Ruby Platform Languages
+    { value: 'ruby', label: 'Ruby', tag: 'RB', description: 'General Ruby code' },
+    { value: 'rails', label: 'Ruby on Rails', tag: 'RB', description: 'Rails framework', isFramework: true },
+    
+    // Python Platform Languages  
+    { value: 'django', label: 'Django', tag: 'PY', description: 'Django framework', isFramework: true },
+    { value: 'flask', label: 'Flask', tag: 'PY', description: 'Flask framework', isFramework: true },
+    
+    // Java Platform Languages
+    { value: 'java', label: 'Java', tag: 'JAVA', description: 'General Java code' },
+    { value: 'spring', label: 'Spring Framework', tag: 'JAVA', description: 'Spring framework', isFramework: true },
+    { value: 'springboot', label: 'Spring Boot', tag: 'JAVA', description: 'Spring Boot framework', isFramework: true },
+    
+    // Go Platform Languages
+    { value: 'go', label: 'Go', tag: 'GO', description: 'Go programming language' },
+    { value: 'gin', label: 'Gin', tag: 'GO', description: 'Gin web framework', isFramework: true },
+    { value: 'echo', label: 'Echo', tag: 'GO', description: 'Echo web framework', isFramework: true },
+    { value: 'fiber', label: 'Fiber', tag: 'GO', description: 'Fiber web framework', isFramework: true },
+    
+    // API Paradigms
+    { value: 'rest', label: 'REST API', tag: 'REST', description: 'RESTful web services', isFramework: true },
+    { value: 'graphql', label: 'GraphQL', tag: 'GQL', description: 'GraphQL query language and runtime', isFramework: true },
+    
+    // Database Systems
+    { value: 'mysql', label: 'MySQL', tag: 'SQL', description: 'MySQL relational database', isFramework: true },
+    { value: 'postgresql', label: 'PostgreSQL', tag: 'SQL', description: 'PostgreSQL relational database', isFramework: true },
+    { value: 'mongodb', label: 'MongoDB', tag: 'NoSQL', description: 'MongoDB document database', isFramework: true },
+    { value: 'sqlite', label: 'SQLite', tag: 'SQL', description: 'SQLite embedded database', isFramework: true },
+    { value: 'redis', label: 'Redis', tag: 'KV', description: 'Redis key-value store', isFramework: true },
+    { value: 'cassandra', label: 'Cassandra', tag: 'NoSQL', description: 'Apache Cassandra wide-column database', isFramework: true },
+    { value: 'dynamodb', label: 'DynamoDB', tag: 'NoSQL', description: 'Amazon DynamoDB document database', isFramework: true },
+    { value: 'elasticsearch', label: 'Elasticsearch', tag: 'SEARCH', description: 'Elasticsearch search engine', isFramework: true },
+    
     { value: 'python2', label: 'Python 2', tag: 'PY2' },
     { value: 'python3', label: 'Python 3', tag: 'PY3' },
-    { value: 'java', label: 'Java', tag: 'JAVA' },
     { value: 'kotlin', label: 'Kotlin', tag: 'KT' },
     { value: 'objc', label: 'Objective-C', tag: 'OBJC' },
     { value: 'swift', label: 'Swift', tag: 'SWIFT' },
@@ -1388,8 +2294,8 @@ const MigrationPage: React.FC = () => {
 
   // Show migration dashboard when user is ready
   if (userId) {
-  return (
-    <div className="min-h-screen bg-gray-50">
+    return (
+      <div className="min-h-screen bg-gray-50">
       {/* Enhanced dropdown styling */}
       <style>{`
         select option {
@@ -1408,15 +2314,15 @@ const MigrationPage: React.FC = () => {
           background-color: #F0FDF4 !important;
         }
       `}</style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Code Migration</h1>
                 <p className="text-gray-600">
-                  Upload your code files and convert them to different programming languages
-                </p>
+              Upload your code files and convert them to different programming languages
+            </p>
               </div>
             </div>
           </div>
@@ -1551,8 +2457,8 @@ const MigrationPage: React.FC = () => {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        From Language
-                      </label>
+                      From Language
+                    </label>
                       {detectedLanguageInfo && (
                         <button
                           onClick={() => setShowDetectionDetails(!showDetectionDetails)}
@@ -1584,13 +2490,13 @@ const MigrationPage: React.FC = () => {
                     )}
                     
                     <div className="relative">
-                      <select
-                        value={fromLanguage}
-                        onChange={(e) => {
-                          const newFromLanguage = e.target.value;
-                          
+                    <select
+                      value={fromLanguage}
+                      onChange={(e) => {
+                        const newFromLanguage = e.target.value;
+                        
                           // More flexible validation - warn but allow user choice
-                          if (uploadedFilename && !validateFileLanguageMatch(uploadedFilename, newFromLanguage, originalFiles[uploadedFilename])) {
+                        if (uploadedFilename && !validateFileLanguageMatch(uploadedFilename, newFromLanguage, originalFiles[uploadedFilename])) {
                             toast(`Note: Your file (${uploadedFilename}) may not match ${newFromLanguage}. You can still proceed if you're sure.`, {
                               duration: 4000,
                               icon: '⚠️',
@@ -1600,30 +2506,30 @@ const MigrationPage: React.FC = () => {
                                 border: '1px solid #F59E0B'
                               }
                             });
-                          }
-                          
-                          setFromLanguage(newFromLanguage);
-                          setUserHasSelectedLanguages(true);
-                        }}
+                        }
+                        
+                        setFromLanguage(newFromLanguage);
+                        setUserHasSelectedLanguages(true);
+                      }}
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none text-gray-900 bg-white"
-                      >
-                        {languageOptions.map((option) => {
+                    >
+                      {languageOptions.map((option) => {
                           const isAutoDetected = detectedLanguageInfo?.primary === option.value;
-                          return (
-                            <option 
-                              key={option.value} 
-                              value={option.value}
-                              style={{
+                        return (
+                          <option 
+                            key={option.value} 
+                            value={option.value}
+                            style={{ 
                                 fontWeight: isAutoDetected ? 'bold' : 'normal',
                                 color: isAutoDetected ? '#059669' : '#1F2937', // Darker color for better visibility
                                 backgroundColor: isAutoDetected ? '#F0FDF4' : 'white'
-                              }}
-                            >
+                            }}
+                          >
                               {isAutoDetected ? '🎯 ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isAutoDetected ? ' - Auto-detected' : ''}
-                          </option>
-                          );
-                        })}
-                      </select>
+                        </option>
+                        );
+                      })}
+                    </select>
                       
                       {/* Selected language tag */}
                       {(() => {
@@ -1645,33 +2551,33 @@ const MigrationPage: React.FC = () => {
                       To Language
                     </label>
                     <div className="relative">
-                      <select
-                        value={toLanguage}
-                        onChange={(e) => {
-                          setToLanguage(e.target.value);
-                          setUserHasSelectedLanguages(true);
-                        }}
+                    <select
+                      value={toLanguage}
+                      onChange={(e) => {
+                        setToLanguage(e.target.value);
+                        setUserHasSelectedLanguages(true);
+                      }}
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none text-gray-900 bg-white"
-                      >
-                        {languageOptions
-                          .filter((option) => option.value !== fromLanguage) // Don't show same language
-                          .map((option) => {
+                    >
+                      {languageOptions
+                        .filter((option) => option.value !== fromLanguage) // Don't show same language
+                        .map((option) => {
                             const isRecommended = isValidMigrationPair(fromLanguage, option.value);
-                            return (
-                              <option 
-                                key={option.value} 
-                                value={option.value}
-                                style={{
+                          return (
+                            <option 
+                              key={option.value} 
+                              value={option.value}
+                              style={{ 
                                   fontWeight: isRecommended ? 'bold' : 'normal',
                                   color: isRecommended ? '#059669' : '#1F2937', // Darker color for better visibility
                                   backgroundColor: isRecommended ? '#F0FDF4' : 'white'
-                                }}
-                              >
+                              }}
+                            >
                                 {isRecommended ? '⭐ ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isRecommended ? ' - Recommended' : ''}
-                            </option>
-                            );
-                          })}
-                      </select>
+                        </option>
+                          );
+                        })}
+                    </select>
                       
                       {/* Selected language tag */}
                       {(() => {
@@ -1681,12 +2587,12 @@ const MigrationPage: React.FC = () => {
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
                               {selectedOption.tag}
                             </span>
-                          </div>
+                      </div>
                         ) : null;
                       })()} 
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
 
                 {/* Convert Button */}
