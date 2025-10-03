@@ -58,9 +58,19 @@ router.post('/:sessionId', authenticateToken, async (req, res) => {
       
       // Save migration results to database
       try {
+        console.log(`🔍 Looking for migration job for session: ${sessionId}, userId: ${userId}`);
         const migrationJob = await MigrationJob.findOne({ sessionId, userId });
+        console.log(`🔍 Migration job found:`, migrationJob ? 'Yes' : 'No');
+        
         if (migrationJob) {
           console.log(`💾 Saving migration results to database for session: ${sessionId}`);
+          console.log(`💾 Migration result structure:`, {
+            hasMigratedCode: !!result.result.migratedCode,
+            hasFiles: !!result.result.files,
+            filesCount: result.result.files?.length || 0,
+            hasSummary: !!result.result.summary,
+            hasChanges: !!result.result.changes
+          });
           
           // Prepare options for saving results
           const saveOptions = {
@@ -70,14 +80,31 @@ router.post('/:sessionId', authenticateToken, async (req, res) => {
             migratedFilename: result.result.files?.[0]?.migratedFilename || 'unknown'
           };
           
+          console.log(`💾 Save options:`, saveOptions);
+          
           // Save the migration results
           await migrationJob.saveMigrationResults(result.result, saveOptions);
           console.log(`✅ Migration results saved to database`);
+          
+          // Verify the save worked
+          const updatedJob = await MigrationJob.findById(migrationJob._id);
+          console.log(`✅ Verification - Job now has:`, {
+            fromLanguage: updatedJob.fromLanguage,
+            toLanguage: updatedJob.toLanguage,
+            migratedCodeLength: updatedJob.migratedCode?.length || 0,
+            migratedFilesCount: Object.keys(updatedJob.migratedFiles || {}).length,
+            summary: updatedJob.summary
+          });
         } else {
           console.log(`⚠️ Migration job not found for session: ${sessionId}`);
         }
       } catch (saveError) {
         console.error(`❌ Failed to save migration results:`, saveError);
+        console.error(`❌ Save error details:`, {
+          name: saveError.name,
+          message: saveError.message,
+          stack: saveError.stack
+        });
         // Don't fail the response, just log the error
       }
       

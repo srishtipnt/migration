@@ -21,11 +21,26 @@ router.get('/history/:userId', auth, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Get migration jobs with pagination
+    console.log(`🔍 Fetching migrations with filter:`, filter);
     const migrations = await MigrationJob.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+    
+    console.log(`🔍 Found ${migrations.length} migrations`);
+    migrations.forEach((migration, index) => {
+      console.log(`🔍 Migration ${index + 1}:`, {
+        sessionId: migration.sessionId,
+        fromLanguage: migration.fromLanguage,
+        toLanguage: migration.toLanguage,
+        status: migration.status,
+        hasMigratedCode: !!migration.migratedCode,
+        migratedCodeLength: migration.migratedCode?.length || 0,
+        hasMigratedFiles: !!migration.migratedFiles,
+        migratedFilesCount: Object.keys(migration.migratedFiles || {}).length
+      });
+    });
 
     // Get total count for pagination
     const totalCount = await MigrationJob.countDocuments(filter);
