@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import migrationAgentService from '../services/MigrationAgentService.js';
+import MigrationJob from '../models/MigrationJob.js';
 
 const router = express.Router();
 
@@ -54,6 +55,32 @@ router.post('/:sessionId', authenticateToken, async (req, res) => {
 
     if (result.success) {
       console.log(`✅ Migration completed for session: ${sessionId}`);
+      
+      // Save migration results to database
+      try {
+        const migrationJob = await MigrationJob.findOne({ sessionId, userId });
+        if (migrationJob) {
+          console.log(`💾 Saving migration results to database for session: ${sessionId}`);
+          
+          // Prepare options for saving results
+          const saveOptions = {
+            fromLang: fromLang || 'unknown',
+            toLang: toLang || 'unknown',
+            originalFilename: result.result.files?.[0]?.filename || 'unknown',
+            migratedFilename: result.result.files?.[0]?.migratedFilename || 'unknown'
+          };
+          
+          // Save the migration results
+          await migrationJob.saveMigrationResults(result.result, saveOptions);
+          console.log(`✅ Migration results saved to database`);
+        } else {
+          console.log(`⚠️ Migration job not found for session: ${sessionId}`);
+        }
+      } catch (saveError) {
+        console.error(`❌ Failed to save migration results:`, saveError);
+        // Don't fail the response, just log the error
+      }
+      
       res.json({
         success: true,
         data: result.result,
