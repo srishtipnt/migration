@@ -8,6 +8,21 @@ import apiService from '../services/api';
 import cleanupService from '../services/cleanupService';
 import { LanguageOption, TwoLevelLanguageInfo } from '../types';
 
+// Enhanced dropdown styling for better visual appeal
+const dropdownStyles = `
+  select option {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 2px 0;
+  }
+  select option:hover {
+    background-color: #f3f4f6;
+  }
+  select option:checked {
+    background-color: #e5e7eb;
+  }
+`;
+
 const MigrationPage: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -2309,9 +2324,15 @@ const MigrationPage: React.FC = () => {
         select option[style*="bold"] {
           font-weight: bold !important;
         }
-        select option[style*="#059669"] {
-          color: #059669 !important;
-          background-color: #F0FDF4 !important;
+        select option[style*="#16a34a"] {
+          color: #16a34a !important;
+          background-color: #dcfce7 !important;
+          font-weight: 600 !important;
+          border-left: 3px solid #16a34a !important;
+          padding-left: 8px !important;
+        }
+        select option[style*="#16a34a"]:hover {
+          background-color: #bbf7d0 !important;
         }
       `}</style>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2520,9 +2541,11 @@ const MigrationPage: React.FC = () => {
                             key={option.value} 
                             value={option.value}
                             style={{ 
-                                fontWeight: isAutoDetected ? 'bold' : 'normal',
-                                color: isAutoDetected ? '#059669' : '#1F2937', // Darker color for better visibility
-                                backgroundColor: isAutoDetected ? '#F0FDF4' : 'white'
+                                fontWeight: isAutoDetected ? '600' : 'normal',
+                                color: isAutoDetected ? '#16a34a' : '#1F2937', // Green color for auto-detected
+                                backgroundColor: isAutoDetected ? '#dcfce7' : 'white',
+                                borderLeft: isAutoDetected ? '3px solid #16a34a' : 'none',
+                                paddingLeft: isAutoDetected ? '8px' : '12px'
                             }}
                           >
                               {isAutoDetected ? ' ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isAutoDetected ? ' - Auto-detected' : ''}
@@ -2568,9 +2591,11 @@ const MigrationPage: React.FC = () => {
                               key={option.value} 
                               value={option.value}
                               style={{ 
-                                  fontWeight: isRecommended ? 'bold' : 'normal',
-                                  color: isRecommended ? '#059669' : '#1F2937', // Darker color for better visibility
-                                  backgroundColor: isRecommended ? '#F0FDF4' : 'white'
+                                  fontWeight: isRecommended ? '600' : 'normal',
+                                  color: isRecommended ? '#16a34a' : '#1F2937', // Green color for recommended
+                                  backgroundColor: isRecommended ? '#dcfce7' : 'white',
+                                  borderLeft: isRecommended ? '3px solid #16a34a' : 'none',
+                                  paddingLeft: isRecommended ? '8px' : '12px'
                               }}
                             >
                                 {isRecommended ? ' ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isRecommended ? ' - Recommended' : ''}
