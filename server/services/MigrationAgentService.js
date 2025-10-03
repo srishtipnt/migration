@@ -108,7 +108,7 @@ class MigrationAgentService {
     const targetExtension = this.getFileExtensionForLanguage(toLang);
     
     // Debug logging
-    console.log('🔍 generateMigratedFilename Debug:');
+    console.log(' generateMigratedFilename Debug:');
     console.log('  - originalFilename:', originalFilename);
     console.log('  - toLang:', toLang);
     console.log('  - targetExtension:', targetExtension);
@@ -250,31 +250,31 @@ class MigrationAgentService {
   async processMigrationCommand(sessionId, command, userId, options = {}) {
     try {
       console.log(`🤖 Processing migration command for session: ${sessionId}`);
-      console.log(`📝 Command: ${command}`);
+      console.log(` Command: ${command}`);
 
       // Step 1: Generate natural language command if fromLang/toLang provided
       let finalCommand = command;
       if (options.fromLang && options.toLang) {
         finalCommand = this.generateMigrationCommand(options.fromLang, options.toLang);
-        console.log(`🔄 Generated command: ${finalCommand}`);
-        console.log(`🔄 From Language: ${options.fromLang}`);
-        console.log(`🔄 To Language: ${options.toLang}`);
+        console.log(` Generated command: ${finalCommand}`);
+        console.log(` From Language: ${options.fromLang}`);
+        console.log(` To Language: ${options.toLang}`);
       }
 
       // Step 2: Convert command to embedding
-      console.log(`🔍 Converting command to embedding...`);
+      console.log(` Converting command to embedding...`);
       const commandEmbedding = await this.embedCommand(finalCommand);
-      console.log(`✅ Command embedded (${commandEmbedding.length} dimensions)`);
+      console.log(` Command embedded (${commandEmbedding.length} dimensions)`);
 
       // Step 3: Find relevant chunks using RAG
-      console.log(`🔍 Finding relevant chunks using RAG...`);
+      console.log(` Finding relevant chunks using RAG...`);
       const relevantChunks = await this.findRelevantChunks(sessionId, commandEmbedding, userId);
-      console.log(`📊 Found ${relevantChunks.length} relevant chunks`);
+      console.log(` Found ${relevantChunks.length} relevant chunks`);
 
       // Step 4: Generate migration using AI
       console.log(`🤖 Generating migration with AI...`);
       const migrationResult = await this.generateMigration(finalCommand, relevantChunks, options);
-      console.log(`✅ Migration generated successfully`);
+      console.log(` Migration generated successfully`);
 
       return {
         success: true,
@@ -286,7 +286,7 @@ class MigrationAgentService {
       };
 
     } catch (error) {
-      console.error('❌ Migration agent error:', error);
+      console.error(' Migration agent error:', error);
       return {
         success: false,
         error: 'Migration processing failed',
@@ -302,7 +302,7 @@ class MigrationAgentService {
    */
   async embedCommand(command) {
     try {
-      console.log(`🔍 Embedding command: ${command}`);
+      console.log(` Embedding command: ${command}`);
       
       const embedding = await GeminiEmbeddingService.generateEmbeddings([{
         content: command,
@@ -315,15 +315,15 @@ class MigrationAgentService {
       }]);
       
       if (embedding && embedding.length > 0) {
-        console.log(`✅ Command embedded successfully (${embedding[0].embedding.length} dimensions)`);
+        console.log(` Command embedded successfully (${embedding[0].embedding.length} dimensions)`);
         return embedding[0].embedding;
       } else {
         throw new Error('Failed to generate embedding');
       }
     } catch (error) {
-      console.error('❌ Error embedding command:', error);
+      console.error(' Error embedding command:', error);
       // Fallback to dummy embedding if API fails
-      console.log('🔄 Using fallback embedding for command');
+      console.log(' Using fallback embedding for command');
       return this.generateDummyEmbedding();
     }
   }
@@ -350,7 +350,7 @@ class MigrationAgentService {
    */
   async findRelevantChunks(sessionId, commandEmbedding, userId) {
     try {
-      console.log(`🔍 Finding chunks for session: ${sessionId}, user: ${userId}`);
+      console.log(` Finding chunks for session: ${sessionId}, user: ${userId}`);
       
       // First try with both sessionId and userId
       let allChunks;
@@ -359,9 +359,9 @@ class MigrationAgentService {
           sessionId: sessionId,
           userId: userId 
         }).lean();
-        console.log(`📊 Found ${allChunks.length} chunks with sessionId + userId filter`);
+        console.log(` Found ${allChunks.length} chunks with sessionId + userId filter`);
       } catch (dbError) {
-        console.error('❌ Database query failed:', dbError.message);
+        console.error(' Database query failed:', dbError.message);
         allChunks = [];
       }
 
@@ -371,22 +371,22 @@ class MigrationAgentService {
           allChunks = await CodeChunk.find({ 
             sessionId: sessionId
           }).lean();
-          console.log(`📊 Found ${allChunks.length} chunks with sessionId only filter`);
+          console.log(` Found ${allChunks.length} chunks with sessionId only filter`);
           
           if (allChunks.length > 0) {
-            console.log(`📊 Chunk user IDs found:`, allChunks.map(c => c.userId));
+            console.log(` Chunk user IDs found:`, allChunks.map(c => c.userId));
           }
         } catch (dbError) {
-          console.error('❌ Database query without userId failed:', dbError.message);
+          console.error(' Database query without userId failed:', dbError.message);
           allChunks = [];
         }
       }
 
-      console.log(`📊 Total chunks found: ${allChunks.length}`);
+      console.log(` Total chunks found: ${allChunks.length}`);
 
       if (allChunks.length === 0) {
         console.log('⚠️ No chunks found for this session');
-        console.log('🔍 This means either:');
+        console.log(' This means either:');
         console.log('  1. Chunks were never created for this session');
         console.log('  2. Chunks were created with different sessionId/userId');
         console.log('  3. The chunking process failed');
@@ -402,7 +402,7 @@ class MigrationAgentService {
             similarity
           };
         } catch (error) {
-          console.error('❌ Error calculating similarity for chunk:', error);
+          console.error(' Error calculating similarity for chunk:', error);
           return {
             ...chunk,
             similarity: 0.1 // Default low similarity
@@ -416,14 +416,14 @@ class MigrationAgentService {
         .slice(0, 10) // Top 10 most relevant chunks
         .filter(chunk => chunk.similarity > 0.1); // Lower threshold for demo
 
-      console.log(`📈 Found ${relevantChunks.length} relevant chunks with similarity > 0.1`);
+      console.log(` Found ${relevantChunks.length} relevant chunks with similarity > 0.1`);
       if (relevantChunks.length > 0) {
-        console.log(`📈 Similarity scores: ${relevantChunks.map(c => c.similarity.toFixed(3)).join(', ')}`);
+        console.log(` Similarity scores: ${relevantChunks.map(c => c.similarity.toFixed(3)).join(', ')}`);
       }
       
       return relevantChunks;
     } catch (error) {
-      console.error('❌ Error finding relevant chunks:', error);
+      console.error(' Error finding relevant chunks:', error);
       throw new Error('Failed to find relevant chunks');
     }
   }
@@ -491,7 +491,7 @@ class MigrationAgentService {
   async generateMigration(command, relevantChunks, options = {}) {
     try {
       console.log(`🤖 Generating migration with ${relevantChunks.length} chunks`);
-      console.log(`🔍 Chunks details:`, relevantChunks.map(c => ({
+      console.log(` Chunks details:`, relevantChunks.map(c => ({
         id: c._id,
         fileName: c.fileName || c.filename,
         chunkType: c.chunkType,
@@ -501,7 +501,7 @@ class MigrationAgentService {
       // If no chunks available, return a demo result
       if (relevantChunks.length === 0) {
         console.log('⚠️ No chunks available, returning demo migration');
-        console.log('🔍 This means the chunking process failed or no chunks were created for this session');
+        console.log(' This means the chunking process failed or no chunks were created for this session');
         return this.generateDemoMigration(command, options);
       }
 
@@ -521,7 +521,7 @@ class MigrationAgentService {
       // Create the prompt for Gemini
       const prompt = this.createMigrationPrompt(command, context);
 
-      console.log(`📝 Sending prompt to Gemini (${prompt.length} characters)`);
+      console.log(` Sending prompt to Gemini (${prompt.length} characters)`);
 
       try {
         console.log(`⏱️ Starting Gemini API call at ${new Date().toISOString()}`);
@@ -542,23 +542,23 @@ class MigrationAgentService {
         // Process the response using the new method
         return this.processGeminiResponse(text, relevantChunks, options);
       } catch (geminiError) {
-        console.error('❌ Gemini API error:', geminiError.message);
+        console.error(' Gemini API error:', geminiError.message);
         
         // Check if it's a timeout or service unavailable error
         if (geminiError.message.includes('timeout') || geminiError.message.includes('503') || geminiError.message.includes('Service Unavailable') || geminiError.message.includes('overloaded')) {
-          console.log('🔄 Gemini API is overloaded or timed out, retrying with multiple attempts...');
+          console.log(' Gemini API is overloaded or timed out, retrying with multiple attempts...');
           
           // Try multiple retry attempts with increasing delays
           const retryAttempts = [5000, 10000, 15000]; // 5s, 10s, 15s
           
           for (let i = 0; i < retryAttempts.length; i++) {
             const delay = retryAttempts[i];
-            console.log(`🔄 Retry attempt ${i + 1}/${retryAttempts.length} in ${delay/1000} seconds...`);
+            console.log(` Retry attempt ${i + 1}/${retryAttempts.length} in ${delay/1000} seconds...`);
             
             await new Promise(resolve => setTimeout(resolve, delay));
             
             try {
-              console.log(`🔄 Retrying Gemini API call (attempt ${i + 1})...`);
+              console.log(` Retrying Gemini API call (attempt ${i + 1})...`);
               const retryResult = await Promise.race([
                 this.model.generateContent(prompt),
                 new Promise((_, reject) => 
@@ -568,25 +568,25 @@ class MigrationAgentService {
               const retryResponse = await retryResult.response;
               const retryText = retryResponse.text();
               
-              console.log('✅ Retry successful, processing response...');
+              console.log(' Retry successful, processing response...');
               return this.processGeminiResponse(retryText, relevantChunks, options);
             } catch (retryError) {
-              console.error(`❌ Retry attempt ${i + 1} failed:`, retryError.message);
+              console.error(` Retry attempt ${i + 1} failed:`, retryError.message);
               if (i === retryAttempts.length - 1) {
-                console.log('🔄 All retry attempts failed, falling back to demo migration');
+                console.log(' All retry attempts failed, falling back to demo migration');
                 return this.generateDemoMigration(command, options);
               }
             }
           }
         } else {
-          console.log('🔄 Falling back to demo migration');
+          console.log(' Falling back to demo migration');
           return this.generateDemoMigration(command, options);
         }
       }
 
     } catch (error) {
-      console.error('❌ Error generating migration:', error);
-      console.log('🔄 Falling back to demo migration');
+      console.error(' Error generating migration:', error);
+      console.log(' Falling back to demo migration');
       return this.generateDemoMigration(command, options);
     }
   }
@@ -600,8 +600,8 @@ class MigrationAgentService {
    */
   processGeminiResponse(text, relevantChunks, options = {}) {
     try {
-      console.log('📝 Raw Gemini response:', text.substring(0, 200) + '...');
-      console.log('📝 Full Gemini response:', text);
+      console.log(' Raw Gemini response:', text.substring(0, 200) + '...');
+      console.log(' Full Gemini response:', text);
       
       let parsedResult;
       
@@ -610,7 +610,7 @@ class MigrationAgentService {
       if (jsonMatch) {
         try {
           parsedResult = JSON.parse(jsonMatch[1]);
-          console.log('✅ Parsed JSON response from Gemini');
+          console.log(' Parsed JSON response from Gemini');
         } catch (jsonError) {
           console.log('⚠️ JSON parsing failed, trying text extraction');
           parsedResult = null;
@@ -619,7 +619,7 @@ class MigrationAgentService {
       
       // If JSON parsing failed, try to extract the inner migratedCode
       if (parsedResult && parsedResult.migratedCode && parsedResult.migratedCode.startsWith('```json')) {
-        console.log('🔧 Detected nested JSON in migratedCode, extracting inner content');
+        console.log(' Detected nested JSON in migratedCode, extracting inner content');
         try {
           const innerJsonMatch = parsedResult.migratedCode.match(/```(?:json)?\n([\s\S]*?)\n```/);
           if (innerJsonMatch) {
@@ -631,7 +631,7 @@ class MigrationAgentService {
               changes: innerParsed.changes || parsedResult.changes,
               files: innerParsed.files || parsedResult.files
             };
-            console.log('✅ Extracted inner JSON content');
+            console.log(' Extracted inner JSON content');
           }
         } catch (innerError) {
           console.log('⚠️ Inner JSON extraction failed:', innerError.message);
@@ -642,7 +642,7 @@ class MigrationAgentService {
       if (!parsedResult) {
         try {
           parsedResult = JSON.parse(text);
-          console.log('✅ Parsed entire response as JSON');
+          console.log(' Parsed entire response as JSON');
         } catch (jsonError) {
           console.log('⚠️ Entire response is not JSON, trying to extract from markdown');
           // Try to extract JSON from markdown code blocks
@@ -650,7 +650,7 @@ class MigrationAgentService {
           if (markdownMatch) {
             try {
               parsedResult = JSON.parse(markdownMatch[1]);
-              console.log('✅ Extracted JSON from markdown');
+              console.log(' Extracted JSON from markdown');
             } catch (markdownError) {
               console.log('⚠️ Markdown extraction failed, using fallback');
               parsedResult = null;
@@ -663,7 +663,7 @@ class MigrationAgentService {
       
       // If we have a parsed JSON result, use it
       if (parsedResult && parsedResult.migratedCode) {
-        console.log('✅ Using JSON response from Gemini');
+        console.log(' Using JSON response from Gemini');
         
         // Add ecosystem warnings and recommendations
         const warnings = this.ecosystemMapping.generateMigrationWarnings(
@@ -679,13 +679,13 @@ class MigrationAgentService {
         );
         
         // Process migratedCode to extract actual code from JSON structure if needed
-        console.log('🔍 Original migratedCode (first 200 chars):', parsedResult.migratedCode.substring(0, 200));
+        console.log(' Original migratedCode (first 200 chars):', parsedResult.migratedCode.substring(0, 200));
         
         let processedMigratedCode = parsedResult.migratedCode;
         
         // Check if migratedCode contains JSON structure instead of raw code
         if (processedMigratedCode.trim().startsWith('```json') || processedMigratedCode.trim().startsWith('{')) {
-          console.log('🔍 Detected JSON structure in migratedCode, extracting actual code...');
+          console.log(' Detected JSON structure in migratedCode, extracting actual code...');
           
           try {
             // Try to parse as JSON if it starts with {
@@ -696,7 +696,7 @@ class MigrationAgentService {
                 const jsonObj = JSON.parse(jsonStr);
                 if (jsonObj.migratedCode) {
                   processedMigratedCode = jsonObj.migratedCode;
-                  console.log('🔍 Extracted code from JSON.migratedCode field');
+                  console.log(' Extracted code from JSON.migratedCode field');
                 }
               }
             }
@@ -709,13 +709,13 @@ class MigrationAgentService {
                 const jsonObj = JSON.parse(jsonStr);
                 if (jsonObj.migratedCode) {
                   processedMigratedCode = jsonObj.migratedCode;
-                  console.log('🔍 Extracted code from markdown JSON block');
+                  console.log(' Extracted code from markdown JSON block');
                 }
               }
             }
           } catch (parseError) {
-            console.error('❌ Failed to parse JSON structure:', parseError.message);
-            console.log('🔍 Using original migratedCode as fallback');
+            console.error(' Failed to parse JSON structure:', parseError.message);
+            console.log(' Using original migratedCode as fallback');
           }
         }
         
@@ -726,7 +726,7 @@ class MigrationAgentService {
           .replace(/\\r\\n/g, '\n')
           .replace(/\\r/g, '\n');
         
-        console.log('🔍 Processed migratedCode (first 200 chars):', processedMigratedCode.substring(0, 200));
+        console.log(' Processed migratedCode (first 200 chars):', processedMigratedCode.substring(0, 200));
         
         // Process files array if it exists, converting escaped newlines in content
         let processedFiles = parsedResult.files;
@@ -755,22 +755,22 @@ class MigrationAgentService {
           isDemo: false
         };
         
-        console.log('🔍 Final migration result (migratedCode first 200 chars):', result.migratedCode.substring(0, 200));
-        console.log('🔍 Final migration result (files[0].content first 200 chars):', result.files[0]?.content?.substring(0, 200));
-        console.log('🔍 Target language was:', options.toLang);
-        console.log('🔍 Generated filename:', this.generateMigratedFilename(relevantChunks[0], options.toLang));
+        console.log(' Final migration result (migratedCode first 200 chars):', result.migratedCode.substring(0, 200));
+        console.log(' Final migration result (files[0].content first 200 chars):', result.files[0]?.content?.substring(0, 200));
+        console.log(' Target language was:', options.toLang);
+        console.log(' Generated filename:', this.generateMigratedFilename(relevantChunks[0], options.toLang));
         
         return result;
       }
       
       // Check if the response is double-encoded JSON (Gemini sometimes returns JSON wrapped in JSON)
       if (parsedResult && typeof parsedResult.migratedCode === 'string' && parsedResult.migratedCode.startsWith('```json')) {
-        console.log('🔧 Detected double-encoded JSON, parsing inner content');
+        console.log(' Detected double-encoded JSON, parsing inner content');
         try {
           const innerJsonMatch = parsedResult.migratedCode.match(/```(?:json)?\n([\s\S]*?)\n```/);
           if (innerJsonMatch) {
             const innerParsed = JSON.parse(innerJsonMatch[1]);
-            console.log('✅ Parsed inner JSON from double-encoded response');
+            console.log(' Parsed inner JSON from double-encoded response');
             return {
               migratedCode: innerParsed.migratedCode || innerParsed.files?.[0]?.content || 'No migrated code available',
               summary: innerParsed.summary || 'Code converted successfully',
@@ -817,20 +817,20 @@ class MigrationAgentService {
         changes.push('Added TypeScript type annotations', 'Converted to TypeScript syntax');
       }
       
-      console.log('✅ Parsed migration result successfully');
-      console.log('📝 Code:', code.substring(0, 100) + '...');
-      console.log('📝 Summary:', summary);
-      console.log('📝 Changes:', changes);
+      console.log(' Parsed migration result successfully');
+      console.log(' Code:', code.substring(0, 100) + '...');
+      console.log(' Summary:', summary);
+      console.log(' Changes:', changes);
       
       // Validate database migration quality
-      console.log('🔍 DEBUG: Checking if validation should run...');
-      console.log(`🔍 DEBUG: fromLang=${options.fromLang}, toLang=${options.toLang}`);
+      console.log(' DEBUG: Checking if validation should run...');
+      console.log(` DEBUG: fromLang=${options.fromLang}, toLang=${options.toLang}`);
       
       if (options.fromLang && options.toLang) {
-        console.log('🔍 DEBUG: Running validation...');
+        console.log(' DEBUG: Running validation...');
         const validation = this.validateDatabaseMigrationQuality(code, options.fromLang, options.toLang);
         
-        console.log('🔍 DEBUG: Validation result:', {
+        console.log(' DEBUG: Validation result:', {
           isValid: validation.isValid,
           isAnalyticsMigration: validation.isAnalyticsMigration,
           characterCount: validation.characterCount,
@@ -838,24 +838,24 @@ class MigrationAgentService {
         });
         
         if (validation.isAnalyticsMigration) {
-          console.log('🔍 Validating analytics database migration quality...');
-          console.log(`📊 Character count: ${validation.characterCount}`);
+          console.log(' Validating analytics database migration quality...');
+          console.log(` Character count: ${validation.characterCount}`);
           
           if (!validation.isValid) {
-            console.log('❌ Migration quality validation failed:');
+            console.log(' Migration quality validation failed:');
             validation.issues.forEach(issue => console.log(`   - ${issue}`));
             
             // For analytics migrations, return a comprehensive demo instead of low-quality output
-            console.log('🔄 Falling back to comprehensive demo migration for quality assurance');
+            console.log(' Falling back to comprehensive demo migration for quality assurance');
             const demoResult = this.generateDatabaseDemoMigration(options.fromLang, options.toLang, `Convert from ${options.fromLang} to ${options.toLang}`);
-            console.log('🔍 DEBUG: Demo migration character count:', demoResult.migratedCode.length);
+            console.log(' DEBUG: Demo migration character count:', demoResult.migratedCode.length);
             return demoResult;
           } else {
-            console.log('✅ Analytics migration passed quality validation');
+            console.log(' Analytics migration passed quality validation');
           }
         }
       } else {
-        console.log('🔍 DEBUG: Skipping validation - missing fromLang or toLang');
+        console.log(' DEBUG: Skipping validation - missing fromLang or toLang');
       }
       
       return {
@@ -870,7 +870,7 @@ class MigrationAgentService {
         isDemo: false
       };
     } catch (error) {
-      console.error('❌ Error processing Gemini response:', error);
+      console.error(' Error processing Gemini response:', error);
       throw error;
     }
   }
@@ -1852,12 +1852,12 @@ ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
    - Indexes: CREATE INDEX (at least 10 different indexes)
 
 FORBIDDEN PATTERNS (WILL CAUSE REJECTION):
-❌ CREATE TABLE analytics_events (...) -- Single denormalized table
-❌ CREATE TABLE analytics (...) -- Wide single table
-❌ Any schema with fewer than 8 tables
-❌ Any schema without materialized views
-❌ Any schema without partitioning
-❌ Any schema under 15,000 characters
+ CREATE TABLE analytics_events (...) -- Single denormalized table
+ CREATE TABLE analytics (...) -- Wide single table
+ Any schema with fewer than 8 tables
+ Any schema without materialized views
+ Any schema without partitioning
+ Any schema under 15,000 characters
 
 REQUIRED OUTPUT STRUCTURE:
 -- DIMENSION TABLES (5+ tables)

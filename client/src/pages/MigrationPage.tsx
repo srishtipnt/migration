@@ -82,7 +82,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'js') {
       // Use enhanced framework detection for JavaScript files
       const detectedFramework = detectFrontendFramework(filename, content);
-      console.log(`🔍 Detected framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'jquery') {
         setFromLanguage('jquery');
@@ -149,7 +149,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'php') {
       // Use enhanced framework detection for PHP files
       const detectedFramework = detectPHPFramework(filename, content);
-      console.log(`🔍 Detected PHP framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected PHP framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'wordpress') {
         setFromLanguage('wordpress');
@@ -170,7 +170,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'rb') {
       // Use enhanced framework detection for Ruby files
       const detectedFramework = detectRubyFramework(filename, content);
-      console.log(`🔍 Detected Ruby framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected Ruby framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'rails') {
         setFromLanguage('rails');
@@ -186,7 +186,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'java') {
       // Use enhanced framework detection for Java files
       const detectedFramework = detectJavaFramework(filename, content);
-      console.log(`🔍 Detected Java framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected Java framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'springboot') {
         setFromLanguage('springboot');
@@ -207,7 +207,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'go') {
       // Use enhanced framework detection for Go files
       const detectedFramework = detectGoFramework(filename, content);
-      console.log(`🔍 Detected Go framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected Go framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'gin') {
         setFromLanguage('gin');
@@ -233,7 +233,7 @@ const MigrationPage: React.FC = () => {
     } else if (extension === 'html') {
       // Use enhanced framework detection for HTML files
       const detectedFramework = detectFrontendFramework(filename, content);
-      console.log(`🔍 Detected framework for ${filename}: ${detectedFramework}`);
+      console.log(` Detected framework for ${filename}: ${detectedFramework}`);
       
       if (detectedFramework === 'angularjs') {
         setFromLanguage('angularjs');
@@ -326,7 +326,7 @@ const MigrationPage: React.FC = () => {
       const tagInfo = detection.tag ? ` (${detection.tag})` : '';
       toast.success(`Auto-detected: ${detectedFrom}${tagInfo} → ${detectedTo}`, {
         duration: 4000,
-        icon: '🔍'
+        icon: ''
       });
     }
   };
@@ -893,7 +893,7 @@ const MigrationPage: React.FC = () => {
     
     const hasVueIndicators = vueIndicators.some(pattern => pattern.test(content));
     if (hasVueIndicators) {
-      console.log(`🔍 React Detection: Vue indicators found, not React`);
+      console.log(` React Detection: Vue indicators found, not React`);
       return false;
     }
     
@@ -944,7 +944,7 @@ const MigrationPage: React.FC = () => {
     const hasReactPatterns = matchingPatterns.length > 0;
     
     // Debug logging
-    console.log(`🔍 React Detection Debug:`, {
+    console.log(` React Detection Debug:`, {
       hasReactPatterns,
       hasReactJSX,
       matchingPatterns: matchingPatterns.length,
@@ -959,7 +959,7 @@ const MigrationPage: React.FC = () => {
   const isVueFile = (content: string): boolean => {
     // Quick check for Vue single file component structure
     if (content.includes('<template>') && content.includes('<script>')) {
-      console.log(`🔍 Vue Detection: Found Vue SFC structure`);
+      console.log(` Vue Detection: Found Vue SFC structure`);
       return true;
     }
     
@@ -1026,7 +1026,7 @@ const MigrationPage: React.FC = () => {
     const hasVuePatterns = matchingPatterns.length > 0;
     
     // Debug logging
-    console.log(`🔍 Vue Detection Debug:`, {
+    console.log(` Vue Detection Debug:`, {
       hasVuePatterns,
       matchingPatterns: matchingPatterns.length,
       totalPatterns: vuePatterns.length
@@ -1152,7 +1152,7 @@ const MigrationPage: React.FC = () => {
 
   // PHP Framework Detection
   const detectPHPFramework = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting PHP framework for ${filename}`);
+    console.log(` Detecting PHP framework for ${filename}`);
     
     // WordPress detection patterns
     const wordpressPatterns = [
@@ -1181,27 +1181,27 @@ const MigrationPage: React.FC = () => {
     // Count Laravel patterns  
     const laravelMatches = laravelPatterns.filter(pattern => pattern.test(content)).length;
     
-    console.log(`🔍 WordPress patterns: ${wordpressMatches}, Laravel patterns: ${laravelMatches}`);
+    console.log(` WordPress patterns: ${wordpressMatches}, Laravel patterns: ${laravelMatches}`);
     
     // Require at least 2 patterns to confirm framework
     if (wordpressMatches >= 2) {
-      console.log(`✅ Detected WordPress (${wordpressMatches} patterns)`);
+      console.log(` Detected WordPress (${wordpressMatches} patterns)`);
       return 'wordpress';
     }
     
     if (laravelMatches >= 2) {
-      console.log(`✅ Detected Laravel (${laravelMatches} patterns)`);
+      console.log(` Detected Laravel (${laravelMatches} patterns)`);
       return 'laravel';
     }
     
     // If no specific framework detected, return generic PHP
-    console.log(`✅ Detected generic PHP`);
+    console.log(` Detected generic PHP`);
     return 'php';
   };
 
   // Ruby Framework Detection
   const detectRubyFramework = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting Ruby framework for ${filename}`);
+    console.log(` Detecting Ruby framework for ${filename}`);
     
     // Rails detection patterns
     const railsPatterns = [
@@ -1222,22 +1222,22 @@ const MigrationPage: React.FC = () => {
     // Count Rails patterns
     const railsMatches = railsPatterns.filter(pattern => pattern.test(content)).length;
     
-    console.log(`🔍 Rails patterns: ${railsMatches}`);
+    console.log(` Rails patterns: ${railsMatches}`);
     
     // Require at least 2 patterns to confirm Rails
     if (railsMatches >= 2) {
-      console.log(`✅ Detected Ruby on Rails (${railsMatches} patterns)`);
+      console.log(` Detected Ruby on Rails (${railsMatches} patterns)`);
       return 'rails';
     }
     
     // If no specific framework detected, return generic Ruby
-    console.log(`✅ Detected generic Ruby`);
+    console.log(` Detected generic Ruby`);
     return 'ruby';
   };
 
   // Java Framework Detection
   const detectJavaFramework = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting Java framework for ${filename}`);
+    console.log(` Detecting Java framework for ${filename}`);
     
     // Spring Boot detection patterns
     const springBootPatterns = [
@@ -1272,27 +1272,27 @@ const MigrationPage: React.FC = () => {
     // Count Spring patterns
     const springMatches = springPatterns.filter(pattern => pattern.test(content)).length;
     
-    console.log(`🔍 Spring Boot patterns: ${springBootMatches}, Spring patterns: ${springMatches}`);
+    console.log(` Spring Boot patterns: ${springBootMatches}, Spring patterns: ${springMatches}`);
     
     // Require at least 2 patterns to confirm framework
     if (springBootMatches >= 2) {
-      console.log(`✅ Detected Spring Boot (${springBootMatches} patterns)`);
+      console.log(` Detected Spring Boot (${springBootMatches} patterns)`);
       return 'springboot';
     }
     
     if (springMatches >= 2) {
-      console.log(`✅ Detected Spring Framework (${springMatches} patterns)`);
+      console.log(` Detected Spring Framework (${springMatches} patterns)`);
       return 'spring';
     }
     
     // If no specific framework detected, return generic Java
-    console.log(`✅ Detected generic Java`);
+    console.log(` Detected generic Java`);
     return 'java';
   };
 
   // REST API Detection
   const detectRESTAPI = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting REST API patterns for ${filename}`);
+    console.log(` Detecting REST API patterns for ${filename}`);
     
     const restPatterns = [
       // Express.js REST patterns
@@ -1332,10 +1332,10 @@ const MigrationPage: React.FC = () => {
     ];
     
     const matches = restPatterns.filter(pattern => pattern.test(content)).length;
-    console.log(`🔍 REST API patterns found: ${matches}`);
+    console.log(` REST API patterns found: ${matches}`);
     
     if (matches >= 3) {
-      console.log(`✅ Detected REST API (${matches} patterns)`);
+      console.log(` Detected REST API (${matches} patterns)`);
       return 'rest';
     }
     
@@ -1344,7 +1344,7 @@ const MigrationPage: React.FC = () => {
 
   // GraphQL Detection
   const detectGraphQL = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting GraphQL patterns for ${filename}`);
+    console.log(` Detecting GraphQL patterns for ${filename}`);
     
     const graphqlPatterns = [
       // GraphQL schema patterns
@@ -1389,10 +1389,10 @@ const MigrationPage: React.FC = () => {
     ];
     
     const matches = graphqlPatterns.filter(pattern => pattern.test(content)).length;
-    console.log(`🔍 GraphQL patterns found: ${matches}`);
+    console.log(` GraphQL patterns found: ${matches}`);
     
     if (matches >= 3) {
-      console.log(`✅ Detected GraphQL (${matches} patterns)`);
+      console.log(` Detected GraphQL (${matches} patterns)`);
       return 'graphql';
     }
     
@@ -1401,7 +1401,7 @@ const MigrationPage: React.FC = () => {
 
   // Database Detection
   const detectDatabase = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting database system for ${filename}`);
+    console.log(` Detecting database system for ${filename}`);
     
     // MySQL detection patterns
     const mysqlPatterns = [
@@ -1538,7 +1538,7 @@ const MigrationPage: React.FC = () => {
     
     for (const db of databases) {
       const matches = db.patterns.filter(pattern => pattern.test(content)).length;
-      console.log(`🔍 ${db.name} patterns found: ${matches}`);
+      console.log(` ${db.name} patterns found: ${matches}`);
       
       if (matches > bestMatch.matches && matches >= 2) {
         bestMatch = { name: db.name, matches };
@@ -1546,7 +1546,7 @@ const MigrationPage: React.FC = () => {
     }
     
     if (bestMatch.name) {
-      console.log(`✅ Detected ${bestMatch.name} database (${bestMatch.matches} patterns)`);
+      console.log(` Detected ${bestMatch.name} database (${bestMatch.matches} patterns)`);
       return bestMatch.name;
     }
     
@@ -1555,7 +1555,7 @@ const MigrationPage: React.FC = () => {
 
   // Go Framework Detection
   const detectGoFramework = (filename: string, content: string): string | null => {
-    console.log(`🔍 Detecting Go framework for ${filename}`);
+    console.log(` Detecting Go framework for ${filename}`);
     
     // Gin detection patterns
     const ginPatterns = [
@@ -1596,26 +1596,26 @@ const MigrationPage: React.FC = () => {
     const echoMatches = echoPatterns.filter(pattern => pattern.test(content)).length;
     const fiberMatches = fiberPatterns.filter(pattern => pattern.test(content)).length;
     
-    console.log(`🔍 Gin patterns: ${ginMatches}, Echo patterns: ${echoMatches}, Fiber patterns: ${fiberMatches}`);
+    console.log(` Gin patterns: ${ginMatches}, Echo patterns: ${echoMatches}, Fiber patterns: ${fiberMatches}`);
     
     // Require at least 2 patterns to confirm framework
     if (ginMatches >= 2) {
-      console.log(`✅ Detected Gin (${ginMatches} patterns)`);
+      console.log(` Detected Gin (${ginMatches} patterns)`);
       return 'gin';
     }
     
     if (echoMatches >= 2) {
-      console.log(`✅ Detected Echo (${echoMatches} patterns)`);
+      console.log(` Detected Echo (${echoMatches} patterns)`);
       return 'echo';
     }
     
     if (fiberMatches >= 2) {
-      console.log(`✅ Detected Fiber (${fiberMatches} patterns)`);
+      console.log(` Detected Fiber (${fiberMatches} patterns)`);
       return 'fiber';
     }
     
     // If no specific framework detected, return generic Go
-    console.log(`✅ Detected generic Go`);
+    console.log(` Detected generic Go`);
     return 'go';
   };
 
@@ -1664,7 +1664,7 @@ const MigrationPage: React.FC = () => {
 
   // Validate if selected language matches file type - More flexible validation
   const validateFileLanguageMatch = (filename: string, selectedLanguage: string, content?: string): boolean => {
-    console.log(`🔍 Validating file: ${filename}, selected: ${selectedLanguage}, has content: ${!!content}`);
+    console.log(` Validating file: ${filename}, selected: ${selectedLanguage}, has content: ${!!content}`);
     
       const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
     
@@ -1703,7 +1703,7 @@ const MigrationPage: React.FC = () => {
     
     
     const isValid = validOptions.includes(selectedLanguage);
-    console.log(`✅ Flexible validation: ${extension} allows [${validOptions.join(', ')}], selected: ${selectedLanguage} = ${isValid}`);
+    console.log(` Flexible validation: ${extension} allows [${validOptions.join(', ')}], selected: ${selectedLanguage} = ${isValid}`);
     return isValid;
   };
 
@@ -1887,7 +1887,7 @@ const MigrationPage: React.FC = () => {
       setOriginalFiles({ [file.name]: fileContent });
       
       // Auto-detect language and set target
-      console.log('🔍 File content preview:', fileContent.substring(0, 200));
+      console.log(' File content preview:', fileContent.substring(0, 200));
       detectLanguageAndSetTarget(file.name, fileContent);
         
         // Store the session ID for migration
@@ -1896,13 +1896,13 @@ const MigrationPage: React.FC = () => {
         
         if (response.data.job?.sessionId) {
           setCurrentSessionId(response.data.job.sessionId);
-          console.log('✅ Stored session ID for single file migration:', response.data.job.sessionId);
+          console.log(' Stored session ID for single file migration:', response.data.job.sessionId);
         } else {
-          console.log('❌ No session ID found in job:', response.data.job);
+          console.log(' No session ID found in job:', response.data.job);
           // Try to extract session ID from the file data if available
           if (response.data.file?.sessionId) {
             setCurrentSessionId(response.data.file.sessionId);
-            console.log('✅ Stored session ID from file data:', response.data.file.sessionId);
+            console.log(' Stored session ID from file data:', response.data.file.sessionId);
           } else {
             // Fallback: generate a session ID for single file
             const fallbackSessionId = `single-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1987,7 +1987,7 @@ const MigrationPage: React.FC = () => {
         const detectedLanguage = getLanguageFromFileExtension(uploadedFilename, originalFiles[uploadedFilename]);
         toast.error(`File type mismatch. Your file (${uploadedFilename}) is detected as ${detectedLanguage}, but you selected ${fromLanguage}. Please select the correct source language.`, {
           duration: 5000,
-          icon: '❌'
+          icon: ''
         });
         return;
       }
@@ -1996,7 +1996,7 @@ const MigrationPage: React.FC = () => {
       if (!isValidMigrationPair(fromLanguage, toLanguage)) {
         toast.error(`Cannot migrate from ${fromLanguage} to ${toLanguage}. Please select a compatible language pair.`, {
           duration: 5000,
-          icon: '❌'
+          icon: ''
         });
         return;
       }
@@ -2010,14 +2010,14 @@ const MigrationPage: React.FC = () => {
       // Use the real session ID from the upload process
       const realSessionId = currentSessionId || 'zip-1758961649380-68802455121c6ac3'; // Use stored session ID or fallback for testing
       
-      console.log('🔍 Migration Debug Info:');
+      console.log(' Migration Debug Info:');
       console.log('  - currentSessionId:', currentSessionId);
       console.log('  - realSessionId:', realSessionId);
       console.log('  - fromLanguage:', fromLanguage);
       console.log('  - toLanguage:', toLanguage);
       
       // Wait for chunks to be ready before proceeding with migration
-      console.log('🔍 Waiting for chunks to be ready...');
+      console.log(' Waiting for chunks to be ready...');
       
       if (!realSessionId) {
         toast.error('No session ID available. Please upload files first.');
@@ -2038,14 +2038,14 @@ const MigrationPage: React.FC = () => {
       
       while (!chunksReady && attempts < maxAttempts) {
         try {
-          console.log(`🔍 Checking chunks readiness (attempt ${attempts + 1}/${maxAttempts})...`);
+          console.log(` Checking chunks readiness (attempt ${attempts + 1}/${maxAttempts})...`);
           
           // Check if chunks are ready by calling a simple API endpoint
           const chunksResponse = await fetch(`http://localhost:3000/api/migrate/chunks-status/${realSessionId}?t=${Date.now()}`);
           const chunksData = await chunksResponse.json();
           
           if (chunksData.success && chunksData.chunksCount > 0) {
-            console.log(`✅ Chunks are ready! Found ${chunksData.chunksCount} chunks`);
+            console.log(` Chunks are ready! Found ${chunksData.chunksCount} chunks`);
             chunksReady = true;
             break;
           }
@@ -2078,7 +2078,7 @@ const MigrationPage: React.FC = () => {
         
         if (response.success) {
           toast.success(`Code converted from ${fromLanguage} to ${toLanguage}!`, { id: 'conversion' });
-          console.log('✅ Migration successful!');
+          console.log(' Migration successful!');
           console.log('Complete response:', JSON.stringify(response, null, 2));
           console.log('Migration result:', response.data);
           console.log('Response metadata:', response.metadata);
@@ -2086,10 +2086,10 @@ const MigrationPage: React.FC = () => {
           console.log('Chunks used:', response.metadata?.chunksUsed);
           console.log('Is demo:', response.data.isDemo);
           
-          console.log('🔍 Setting migration result and showing results...');
+          console.log(' Setting migration result and showing results...');
           
           // Direct test of the response structure
-          console.log('🔍 Response Structure Test:');
+          console.log(' Response Structure Test:');
           console.log('  - response.success:', response.success);
           console.log('  - response.data:', typeof response.data);
           console.log('  - response.metadata:', typeof response.metadata);
@@ -2097,11 +2097,11 @@ const MigrationPage: React.FC = () => {
           console.log('  - response.metadata.chunksUsed:', response.metadata?.chunksUsed);
           
           // Store the migration result and show it
-          console.log('🔍 About to set migration result:', response.data);
-          console.log('🔍 Response data type:', typeof response.data);
-          console.log('🔍 Response data keys:', response.data ? Object.keys(response.data) : 'null/undefined');
+          console.log(' About to set migration result:', response.data);
+          console.log(' Response data type:', typeof response.data);
+          console.log(' Response data keys:', response.data ? Object.keys(response.data) : 'null/undefined');
           setMigrationResult(response.data);
-          console.log('🔍 Migration result set, checking state...');
+          console.log(' Migration result set, checking state...');
           
           // Fetch original file contents for diff viewing
           try {
@@ -2131,7 +2131,7 @@ const MigrationPage: React.FC = () => {
           
           setShowResults(true);
           setIsConverted(true);
-          console.log('✅ Results should now be visible!');
+          console.log(' Results should now be visible!');
           console.log('showResults:', true);
           console.log('isConverted:', true);
           console.log('migrationResult:', response.data);
@@ -2174,7 +2174,7 @@ const MigrationPage: React.FC = () => {
         setMigrationResult(demoResult);
         setOriginalFiles({ 'demo.js': 'console.log("Hello World");' });
         setShowResults(true);
-        console.log('✅ Demo results should now be visible!');
+        console.log(' Demo results should now be visible!');
         console.log('showResults:', true);
         console.log('demoResult:', demoResult);
       }
@@ -2525,7 +2525,7 @@ const MigrationPage: React.FC = () => {
                                 backgroundColor: isAutoDetected ? '#F0FDF4' : 'white'
                             }}
                           >
-                              {isAutoDetected ? '🎯 ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isAutoDetected ? ' - Auto-detected' : ''}
+                              {isAutoDetected ? ' ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isAutoDetected ? ' - Auto-detected' : ''}
                         </option>
                         );
                       })}
@@ -2573,7 +2573,7 @@ const MigrationPage: React.FC = () => {
                                   backgroundColor: isRecommended ? '#F0FDF4' : 'white'
                               }}
                             >
-                                {isRecommended ? '⭐ ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isRecommended ? ' - Recommended' : ''}
+                                {isRecommended ? ' ' : ''}{option.label} {option.tag ? `(${option.tag})` : ''} {isRecommended ? ' - Recommended' : ''}
                         </option>
                           );
                         })}
@@ -2645,7 +2645,7 @@ const MigrationPage: React.FC = () => {
           )}
 
           {/* STEP 3: RESULTS SECTION - Only appears after conversion is complete */}
-          {console.log('🔍 Results Section Check - showResults:', showResults, 'migrationResult:', !!migrationResult, 'isConverted:', isConverted)}
+          {console.log(' Results Section Check - showResults:', showResults, 'migrationResult:', !!migrationResult, 'isConverted:', isConverted)}
           {isConverted && migrationResult && (
             <div className="mt-16">
               {/* Results Content - Direct display without extra sections */}

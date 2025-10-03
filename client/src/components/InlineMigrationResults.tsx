@@ -74,7 +74,7 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
     .trim(); // Remove leading/trailing whitespace
   
   // Debug current file structure
-  console.log('🔍 Current file structure:', {
+  console.log(' Current file structure:', {
     filename: currentFile?.filename,
     migratedFilename: currentFile?.migratedFilename,
     contentLength: currentFile?.content?.length,
@@ -85,7 +85,7 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
   const extractCodeFromJson = (content: string): string => {
     if (!content) return '';
     
-    console.log('🔍 extractCodeFromJson input (first 500 chars):', content.substring(0, 500));
+    console.log(' extractCodeFromJson input (first 500 chars):', content.substring(0, 500));
     
     // For architectural migrations, the content should already be the actual code
     // The files array contains the individual service files with their content
@@ -95,12 +95,12 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
     // Check if this looks like JSON (starts with { or contains JSON markers)
     const trimmedContent = content.trim();
     if (trimmedContent.startsWith('{') && trimmedContent.includes('"migratedCode"')) {
-      console.log('🔍 Content appears to be JSON structure, attempting extraction');
+      console.log(' Content appears to be JSON structure, attempting extraction');
       try {
         // Try to parse the entire JSON to extract migratedCode
         const parsed = JSON.parse(trimmedContent);
         if (parsed.migratedCode) {
-          console.log('✅ Extracted migratedCode from JSON structure');
+          console.log(' Extracted migratedCode from JSON structure');
           return parsed.migratedCode.replace(/\\n/g, '\n').replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n');
         }
       } catch (e) {
@@ -110,23 +110,23 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
         // This handles multi-line content and escaped quotes
         const migratedCodeMatch = trimmedContent.match(/"migratedCode":\s*"((?:[^"\\]|\\.)*)"/s);
         if (migratedCodeMatch) {
-          console.log('✅ Extracted migratedCode using regex');
+          console.log(' Extracted migratedCode using regex');
           return migratedCodeMatch[1].replace(/\\n/g, '\n').replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\"/g, '"');
         }
       }
     }
     
     // If it's not JSON or extraction failed, return the content as-is
-    console.log('🔍 Using content as-is (not JSON structure)');
+    console.log(' Using content as-is (not JSON structure)');
     return content.replace(/\\n/g, '\n').replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n');
   };
 
   // Extract and process the migrated content
   const rawMigratedContent = currentFile?.content || '';
-  console.log('🔍 Raw migrated content (first 500 chars):', rawMigratedContent.substring(0, 500));
+  console.log(' Raw migrated content (first 500 chars):', rawMigratedContent.substring(0, 500));
   
   const extractedContent = extractCodeFromJson(rawMigratedContent);
-  console.log('🔍 Extracted content (first 500 chars):', extractedContent.substring(0, 500));
+  console.log(' Extracted content (first 500 chars):', extractedContent.substring(0, 500));
   
   const processedMigratedContent = extractedContent
     .replace(/\\n/g, '\n')
@@ -135,17 +135,17 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
     .replace(/\s+$/gm, '') // Remove trailing whitespace from each line
     .trim(); // Remove leading/trailing whitespace
   
-  console.log('🔍 Final processed content (first 500 chars):', processedMigratedContent.substring(0, 500));
-  console.log('🔍 Final processed content length:', processedMigratedContent.length);
+  console.log(' Final processed content (first 500 chars):', processedMigratedContent.substring(0, 500));
+  console.log(' Final processed content length:', processedMigratedContent.length);
   
   // Debug: Log content processing
-  console.log('🔍 Original content (first 200 chars):', originalContent.substring(0, 200));
-  console.log('🔍 Processed original content (first 200 chars):', processedOriginalContent.substring(0, 200));
-  console.log('🔍 Current file content (first 200 chars):', currentFile?.content?.substring(0, 200));
-  console.log('🔍 Processed migrated content (first 200 chars):', processedMigratedContent.substring(0, 200));
+  console.log(' Original content (first 200 chars):', originalContent.substring(0, 200));
+  console.log(' Processed original content (first 200 chars):', processedOriginalContent.substring(0, 200));
+  console.log(' Current file content (first 200 chars):', currentFile?.content?.substring(0, 200));
+  console.log(' Processed migrated content (first 200 chars):', processedMigratedContent.substring(0, 200));
   
   // Debug content lengths
-  console.log('🔍 Content lengths:');
+  console.log(' Content lengths:');
   console.log('  - originalContent length:', originalContent.length);
   console.log('  - processedOriginalContent length:', processedOriginalContent.length);
   console.log('  - currentFile.content length:', currentFile?.content?.length || 0);
@@ -153,12 +153,12 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
   
   // Debug if content is being truncated
   if (processedMigratedContent.length > 200) {
-    console.log('🔍 Full migrated content preview (first 500 chars):', processedMigratedContent.substring(0, 500));
-    console.log('🔍 Full migrated content preview (last 200 chars):', processedMigratedContent.substring(Math.max(0, processedMigratedContent.length - 200)));
+    console.log(' Full migrated content preview (first 500 chars):', processedMigratedContent.substring(0, 500));
+    console.log(' Full migrated content preview (last 200 chars):', processedMigratedContent.substring(Math.max(0, processedMigratedContent.length - 200)));
   }
   
   // Debug character count discrepancy
-  console.log('🔍 Character Count Analysis:');
+  console.log(' Character Count Analysis:');
   console.log('  - Original raw length:', originalContent.length);
   console.log('  - Original processed length:', processedOriginalContent.length);
   console.log('  - Migrated raw length:', currentFile?.content?.length || 0);
@@ -167,7 +167,7 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
   console.log('  - Difference in migrated:', (currentFile?.content?.length || 0) - processedMigratedContent.length);
   
   // Debug content structure
-  console.log('🔍 Content Structure Analysis:');
+  console.log(' Content Structure Analysis:');
   console.log('  - Original lines:', processedOriginalContent.split('\n').length);
   console.log('  - Migrated lines:', processedMigratedContent.split('\n').length);
   console.log('  - Original has JSON structure:', processedOriginalContent.includes('{') && processedOriginalContent.includes('}'));

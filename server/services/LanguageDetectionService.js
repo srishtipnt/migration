@@ -537,7 +537,7 @@ class LanguageDetectionService {
       isSyntaxDetected: syntax.confidence > 0.5
     };
 
-    console.log(`🔍 Detection result for ${filename}:`, result);
+    console.log(` Detection result for ${filename}:`, result);
     return result;
   }
 
