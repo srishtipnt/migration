@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Eye, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, AlertCircle } from 'lucide-react';
 import MigrationHistory from '../components/MigrationHistory';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
@@ -41,11 +41,6 @@ const HistoryPage: React.FC = () => {
     initializeUser();
   }, []);
 
-  // Handle viewing a migration
-  const handleViewMigration = (sessionId: string) => {
-    // Navigate to migration results page with the session ID
-    navigate(`/migration-results?sessionId=${sessionId}`);
-  };
 
   // Handle downloading a migration result
   const handleDownloadMigration = async (sessionId: string, filename: string) => {
@@ -166,24 +161,13 @@ const HistoryPage: React.FC = () => {
         {userId && (
           <MigrationHistory
             userId={userId}
-            onViewMigration={handleViewMigration}
             onDownloadMigration={handleDownloadMigration}
             onDeleteMigration={handleDeleteMigration}
           />
         )}
 
         {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center space-x-3 mb-3">
-              <Eye className="w-6 h-6 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">View Results</h3>
-            </div>
-            <p className="text-gray-600 text-sm">
-              Click the eye icon on any migration to view detailed results and code comparisons.
-            </p>
-          </div>
-
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center space-x-3 mb-3">
               <Download className="w-6 h-6 text-green-600" />

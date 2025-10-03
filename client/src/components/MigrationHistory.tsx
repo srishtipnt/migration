@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, FileText, ArrowRight, Download, Eye, Trash2, Calendar, User, Code, Database } from 'lucide-react';
+import { Clock, FileText, ArrowRight, Download, Trash2, Calendar, User, Code, Database } from 'lucide-react';
 import apiService from '../services/api';
 
 interface MigrationHistoryItem {
@@ -22,22 +22,18 @@ interface MigrationHistoryItem {
 
 interface MigrationHistoryProps {
   userId: string;
-  onViewMigration: (sessionId: string) => void;
   onDownloadMigration: (sessionId: string, filename: string) => void;
   onDeleteMigration: (sessionId: string) => void;
 }
 
 const MigrationHistory: React.FC<MigrationHistoryProps> = ({
   userId,
-  onViewMigration,
   onDownloadMigration,
   onDeleteMigration
 }) => {
   const [history, setHistory] = useState<MigrationHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'completed' | 'failed' | 'demo'>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'language' | 'size'>('newest');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch migration history
@@ -63,14 +59,11 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
     }
   }, [userId]);
 
-  // Filter and sort history
+  // Filter and sort history - only show completed migrations, sorted by newest first
   const filteredHistory = history
     .filter(item => {
-      // Status filter
-      if (filter === 'completed' && item.status !== 'completed') return false;
-      if (filter === 'failed' && item.status !== 'failed') return false;
-      if (filter === 'demo' && !item.isDemo) return false;
-      if (filter === 'all') return true;
+      // Only show completed migrations
+      if (item.status !== 'completed') return false;
 
       // Search filter
       if (searchTerm) {
@@ -86,18 +79,8 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
       return true;
     })
     .sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'language':
-          return a.fromLanguage.localeCompare(b.fromLanguage);
-        case 'size':
-          return b.fileSize - a.fileSize;
-        default:
-          return 0;
-      }
+      // Sort by newest first
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
   const formatFileSize = (bytes: number): string => {
@@ -190,43 +173,19 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
         </div>
       </div>
 
-      {/* Filters and Search */}
+      {/* Search */}
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
             <input
               type="text"
-              placeholder="Search migrations..."
+              placeholder="Search completed migrations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-
-          {/* Filter */}
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Migrations</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="demo">Demo Migrations</option>
-          </select>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="language">By Language</option>
-            <option value="size">By File Size</option>
-          </select>
         </div>
       </div>
 
@@ -237,9 +196,9 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Migrations Found</h3>
             <p className="text-gray-600">
-              {searchTerm || filter !== 'all' 
-                ? 'No migrations match your current filters.' 
-                : 'Start your first migration to see it here.'}
+              {searchTerm 
+                ? 'No completed migrations match your search.' 
+                : 'No completed migrations found. Start your first migration to see it here.'}
             </p>
           </div>
         ) : (
@@ -318,13 +277,6 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    onClick={() => onViewMigration(item.sessionId)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                    title="View Migration"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
                   <button
                     onClick={() => onDownloadMigration(item.sessionId, item.migratedFilename)}
                     className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
