@@ -79,6 +79,22 @@ const HelpPage: React.FC = () => {
     }));
   };
 
+  // Function to highlight search terms in text
+  const highlightSearchTerm = (text: string, searchTerm: string) => {
+    if (!searchTerm.trim()) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
+
   const helpSections = [
     {
       id: 'getting-started',
@@ -390,7 +406,14 @@ const HelpPage: React.FC = () => {
 
             {/* Help Sections */}
             {filteredSections.map((section) => (
-              <div key={section.id} className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div 
+                key={section.id} 
+                className={`bg-white rounded-lg shadow-sm border mb-6 ${
+                  searchTerm.trim() !== '' 
+                    ? 'border-emerald-300 bg-emerald-50' 
+                    : 'border-gray-200'
+                }`}
+              >
                 <button
                   onClick={() => toggleSection(section.id)}
                   className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
@@ -399,7 +422,16 @@ const HelpPage: React.FC = () => {
                     <div className="text-emerald-600 mr-3">
                       {section.icon}
                     </div>
-                    <h2 className="text-lg font-semibold text-gray-900">{section.title}</h2>
+                    <div className="flex items-center">
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {highlightSearchTerm(section.title, searchTerm)}
+                      </h2>
+                      {searchTerm.trim() !== '' && (
+                        <span className="ml-2 px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                          Search Result
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {expandedSections.has(section.id) ? (
                     <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -412,8 +444,12 @@ const HelpPage: React.FC = () => {
                   <div className="px-6 pb-6">
                     {section.content.map((item, index) => (
                       <div key={index} className="mb-6 last:mb-0">
-                        <h3 className="text-md font-medium text-gray-900 mb-2">{item.title}</h3>
-                        <div className="text-gray-600 whitespace-pre-line">{item.content}</div>
+                        <h3 className="text-md font-medium text-gray-900 mb-2">
+                          {highlightSearchTerm(item.title, searchTerm)}
+                        </h3>
+                        <div className="text-gray-600 whitespace-pre-line">
+                          {highlightSearchTerm(item.content, searchTerm)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -422,19 +458,32 @@ const HelpPage: React.FC = () => {
             ))}
 
             {/* FAQ Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className={`bg-white rounded-lg shadow-sm border ${
+              searchTerm.trim() !== '' && filteredFaqs.length > 0
+                ? 'border-emerald-300 bg-emerald-50'
+                : 'border-gray-200'
+            }`}>
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Info className="w-5 h-5 text-emerald-600 mr-3" />
                   Frequently Asked Questions
+                  {searchTerm.trim() !== '' && filteredFaqs.length > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                      {filteredFaqs.length} Result{filteredFaqs.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
                 </h2>
               </div>
               <div className="p-6">
                 {filteredFaqs.length > 0 ? (
                   filteredFaqs.map((faq, index) => (
                     <div key={index} className="mb-6 last:mb-0">
-                      <h3 className="text-md font-medium text-gray-900 mb-2">{faq.question}</h3>
-                      <p className="text-gray-600">{faq.answer}</p>
+                      <h3 className="text-md font-medium text-gray-900 mb-2">
+                        {highlightSearchTerm(faq.question, searchTerm)}
+                      </h3>
+                      <p className="text-gray-600">
+                        {highlightSearchTerm(faq.answer, searchTerm)}
+                      </p>
                     </div>
                   ))
                 ) : (
