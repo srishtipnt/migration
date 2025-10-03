@@ -26,6 +26,7 @@ import migrationRoutes from './routes/migrationRoutes.js';
 import saveMigrationRoutes from './routes/saveMigrationRoutes.js';
 import systematicMigrationRoutes from './routes/systematicMigrationRoutes.js';
 import languageDetectionRoutes from './routes/languageDetectionRoutes.js';
+import migrationHistoryRoutes from './routes/migrationHistoryRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -112,6 +113,7 @@ app.use('/api/migrate', migrationRoutes);
 app.use('/api/save-migration', saveMigrationRoutes);
 app.use('/api/systematic-migration', systematicMigrationRoutes);
 app.use('/api/language-detection', languageDetectionRoutes);
+app.use('/api/migrations', migrationHistoryRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

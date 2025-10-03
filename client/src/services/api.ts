@@ -322,6 +322,49 @@ class ApiService {
       throw error;
     }
   }
+
+  // Migration History API methods
+  async getMigrationHistory(userId: string) {
+    try {
+      const response = await this.client.get(`/migrations/history/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching migration history:', error);
+      throw error;
+    }
+  }
+
+  async getMigrationDetails(sessionId: string) {
+    try {
+      const response = await this.client.get(`/migrations/details/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching migration details:', error);
+      throw error;
+    }
+  }
+
+  async downloadMigrationResult(sessionId: string, filename: string) {
+    try {
+      const response = await this.client.get(`/migrations/download/${sessionId}/${filename}`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading migration result:', error);
+      throw error;
+    }
+  }
+
+  async deleteMigration(sessionId: string) {
+    try {
+      const response = await this.client.delete(`/migrations/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting migration:', error);
+      throw error;
+    }
+  }
 }
 
 export default new ApiService();
