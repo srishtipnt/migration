@@ -234,10 +234,10 @@ class ApiService {
     console.log('  - sessionId:', sessionId);
     console.log('  - fromLang:', fromLang);
     console.log('  - toLang:', toLang);
-    console.log('  - endpoint:', `/migrate/test/${sessionId}`);
+    console.log('  - endpoint:', `/migrate/${sessionId}`);
     
     try {
-      const response = await this.client.post(`/migrate/test/${sessionId}?t=${Date.now()}`, {
+      const response = await this.client.post(`/migrate/${sessionId}?t=${Date.now()}`, {
         fromLang,
         toLang
       }, {

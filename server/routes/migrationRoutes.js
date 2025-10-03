@@ -80,9 +80,24 @@ router.post('/:sessionId', authenticateToken, async (req, res) => {
             migratedFilename: result.result.files?.[0]?.migratedFilename || 'unknown'
           };
           
+          console.log(`💾 Migration result structure:`, {
+            hasMigratedCode: !!result.result.migratedCode,
+            migratedCodeLength: result.result.migratedCode?.length || 0,
+            hasFiles: !!result.result.files,
+            filesCount: result.result.files?.length || 0,
+            hasSummary: !!result.result.summary,
+            hasChanges: !!result.result.changes,
+            changesCount: result.result.changes?.length || 0
+          });
+          
           console.log(`💾 Save options:`, saveOptions);
           
           // Save the migration results
+          console.log(`💾 Calling saveMigrationResults with:`, {
+            resultKeys: Object.keys(result.result || {}),
+            optionsKeys: Object.keys(saveOptions || {})
+          });
+          
           await migrationJob.saveMigrationResults(result.result, saveOptions);
           console.log(`✅ Migration results saved to database`);
           
