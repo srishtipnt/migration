@@ -58,7 +58,7 @@ router.get('/history/:userId', auth, async (req, res) => {
           originalFilename: migration.originalFilename || 'Unknown',
           migratedFilename: migration.migratedFilename || 'Unknown',
           createdAt: migration.createdAt,
-          status: migration.status,
+          status: migration.status === 'ready' ? 'completed' : migration.status,
           fileSize,
           migrationTime,
           chunksCount,
@@ -251,7 +251,7 @@ router.get('/stats/:userId', auth, async (req, res) => {
     const totalMigrations = await MigrationJob.countDocuments({ userId });
     const completedMigrations = await MigrationJob.countDocuments({ 
       userId, 
-      status: 'completed' 
+      status: 'ready' 
     });
     const failedMigrations = await MigrationJob.countDocuments({ 
       userId, 

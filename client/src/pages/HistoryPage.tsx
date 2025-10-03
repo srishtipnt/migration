@@ -21,13 +21,12 @@ const HistoryPage: React.FC = () => {
         // Check if user is authenticated
         await apiService.getUserFiles();
         
-        // For now, use a simple user ID approach
+        // Use the same user ID logic as MigrationPage
         // In a real app, you'd extract this from the JWT token
         const token = localStorage.getItem('authToken');
         if (token) {
-          // Simple user ID generation for demo purposes
-          const demoUserId = `user_${Date.now()}`;
-          setUserId(demoUserId);
+          // Use the same user ID as MigrationPage
+          setUserId('authenticated-user');
         } else {
           setError('Authentication required');
         }
