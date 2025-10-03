@@ -63,13 +63,11 @@ const migrationJobSchema = new mongoose.Schema({
     default: ''
   },
   migratedFiles: {
-    type: Map,
-    of: String,
+    type: Object,
     default: {}
   },
   originalFiles: {
-    type: Map,
-    of: String,
+    type: Object,
     default: {}
   },
   summary: {
@@ -143,6 +141,13 @@ migrationJobSchema.methods.updateStatus = async function(status, error = null) {
 
 // Instance method to save migration results
 migrationJobSchema.methods.saveMigrationResults = async function(migrationResult, options = {}) {
+  console.log(`💾 saveMigrationResults called with:`, {
+    hasMigrationResult: !!migrationResult,
+    hasOptions: !!options,
+    migrationResultKeys: Object.keys(migrationResult || {}),
+    optionsKeys: Object.keys(options || {})
+  });
+  
   this.fromLanguage = options.fromLang || 'unknown';
   this.toLanguage = options.toLang || 'unknown';
   this.originalFilename = options.originalFilename || 'unknown';
@@ -154,23 +159,48 @@ migrationJobSchema.methods.saveMigrationResults = async function(migrationResult
   this.recommendations = migrationResult.recommendations || [];
   this.isDemo = migrationResult.isDemo || false;
   
+  console.log(`💾 Basic fields set:`, {
+    fromLanguage: this.fromLanguage,
+    toLanguage: this.toLanguage,
+    migratedCodeLength: this.migratedCode.length,
+    summary: this.summary
+  });
+  
   // Store migrated files
   if (migrationResult.files && Array.isArray(migrationResult.files)) {
+    console.log(`💾 Processing ${migrationResult.files.length} files`);
     const migratedFilesMap = {};
-    migrationResult.files.forEach(file => {
+    migrationResult.files.forEach((file, index) => {
+      console.log(`💾 File ${index + 1}:`, {
+        filename: file.filename,
+        migratedFilename: file.migratedFilename,
+        hasContent: !!file.content,
+        contentLength: file.content?.length || 0
+      });
       if (file.migratedFilename && file.content) {
         migratedFilesMap[file.migratedFilename] = file.content;
       }
     });
     this.migratedFiles = migratedFilesMap;
+    console.log(`💾 Migrated files map created with ${Object.keys(migratedFilesMap).length} files`);
+  } else {
+    console.log(`💾 No files array found in migration result`);
   }
   
   // Store original files if provided
   if (options.originalFiles) {
     this.originalFiles = options.originalFiles;
+    console.log(`💾 Original files set with ${Object.keys(options.originalFiles).length} files`);
   }
   
-  return await this.save();
+  console.log(`💾 About to save migration job with:`, {
+    migratedFilesCount: Object.keys(this.migratedFiles || {}).length,
+    originalFilesCount: Object.keys(this.originalFiles || {}).length
+  });
+  
+  const result = await this.save();
+  console.log(`💾 Migration job saved successfully: ${result._id}`);
+  return result;
 };
 
 // Instance method to update progress
