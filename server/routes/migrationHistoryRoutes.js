@@ -11,8 +11,13 @@ router.get('/history/:userId', auth, async (req, res) => {
     const { userId } = req.params;
     const { page = 1, limit = 20, status, fromLanguage, toLanguage } = req.query;
 
-    // Build filter object
-    const filter = { userId };
+    // Use the authenticated user's ID instead of the URL parameter
+    // This ensures we get migrations for the actual authenticated user
+    const authenticatedUserId = req.user.id;
+    console.log(`🔍 History request - URL userId: ${userId}, Authenticated userId: ${authenticatedUserId}`);
+
+    // Build filter object using the authenticated user's ID
+    const filter = { userId: authenticatedUserId };
     if (status) filter.status = status;
     if (fromLanguage) filter.fromLanguage = fromLanguage;
     if (toLanguage) filter.toLanguage = toLanguage;
@@ -111,7 +116,9 @@ router.get('/history/:userId', auth, async (req, res) => {
 router.get('/details/:sessionId', auth, async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user.id;
+
+    console.log(`🔍 Details request - sessionId: ${sessionId}, userId: ${userId}`);
 
     // Get migration job
     const migration = await MigrationJob.findOne({ 
@@ -161,7 +168,9 @@ router.get('/details/:sessionId', auth, async (req, res) => {
 router.get('/download/:sessionId/:filename', auth, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user.id;
+
+    console.log(`🔍 Download request - sessionId: ${sessionId}, filename: ${filename}, userId: ${userId}`);
 
     // Get migration job
     const migration = await MigrationJob.findOne({ 
@@ -218,7 +227,9 @@ router.get('/download/:sessionId/:filename', auth, async (req, res) => {
 router.delete('/:sessionId', auth, async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user.id;
+
+    console.log(`🔍 Delete request - sessionId: ${sessionId}, userId: ${userId}`);
 
     // Delete migration job
     const migrationResult = await MigrationJob.deleteOne({ 
@@ -261,25 +272,28 @@ router.delete('/:sessionId', auth, async (req, res) => {
 router.get('/stats/:userId', auth, async (req, res) => {
   try {
     const { userId } = req.params;
+    const authenticatedUserId = req.user.id;
 
-    // Get basic statistics
-    const totalMigrations = await MigrationJob.countDocuments({ userId });
+    console.log(`🔍 Stats request - URL userId: ${userId}, Authenticated userId: ${authenticatedUserId}`);
+
+    // Get basic statistics using authenticated user ID
+    const totalMigrations = await MigrationJob.countDocuments({ userId: authenticatedUserId });
     const completedMigrations = await MigrationJob.countDocuments({ 
-      userId, 
+      userId: authenticatedUserId, 
       status: 'ready' 
     });
     const failedMigrations = await MigrationJob.countDocuments({ 
-      userId, 
+      userId: authenticatedUserId, 
       status: 'failed' 
     });
     const demoMigrations = await MigrationJob.countDocuments({ 
-      userId, 
+      userId: authenticatedUserId, 
       isDemo: true 
     });
 
     // Get language usage statistics
     const languageStats = await MigrationJob.aggregate([
-      { $match: { userId } },
+      { $match: { userId: authenticatedUserId } },
       {
         $group: {
           _id: { from: '$fromLanguage', to: '$toLanguage' },
