@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, FileText, ArrowRight, Download, Trash2, Calendar, User, Code, Database } from 'lucide-react';
+import { Clock, FileText, ArrowRight, Download, Trash2, Calendar, Code, Database } from 'lucide-react';
 import apiService from '../services/api';
 
 interface MigrationHistoryItem {
@@ -12,9 +12,6 @@ interface MigrationHistoryItem {
   migratedFilename: string;
   createdAt: string;
   status: 'completed' | 'failed' | 'processing';
-  fileSize: number;
-  migrationTime: number;
-  chunksCount: number;
   summary: string;
   changes: string[];
   isDemo: boolean;
@@ -83,13 +80,6 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -227,10 +217,6 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
                     </div>
                     <span>→</span>
                     <span className="truncate max-w-xs">{item.migratedFilename}</span>
-                    <span className="text-gray-400">•</span>
-                    <span>{formatFileSize(item.fileSize)}</span>
-                    <span className="text-gray-400">•</span>
-                    <span>{item.chunksCount} chunks</span>
                   </div>
 
                   {/* Summary */}
@@ -264,13 +250,6 @@ const MigrationHistory: React.FC<MigrationHistoryProps> = ({
                         <Clock className="w-3 h-3" />
                         <span>{formatDate(item.createdAt)}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <User className="w-3 h-3" />
-                        <span>User {item.userId.slice(-4)}</span>
-                      </div>
-                      {item.migrationTime > 0 && (
-                        <span>Completed in {item.migrationTime}s</span>
-                      )}
                     </div>
                   </div>
                 </div>
