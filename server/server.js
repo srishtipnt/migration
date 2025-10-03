@@ -11,6 +11,10 @@ import { fileURLToPath } from 'url';
 // Import database connection
 import connectDB from './config/database.js';
 
+// Import Redis
+import redis from './config/redis.js';
+import RedisService from './services/RedisService.js';
+
 // Import background job processor
 import BackgroundJobProcessor from './services/BackgroundJobProcessor.js';
 
@@ -91,14 +95,29 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Migration Service API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: '1.0.0'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const redisHealth = await RedisService.healthCheck();
+    const dbHealth = true; // MongoDB connection is handled by connectDB
+    
+    res.json({
+      success: true,
+      message: 'Migration Service API is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      version: '1.0.0',
+      services: {
+        database: dbHealth,
+        redis: redisHealth
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed',
+      error: error.message
+    });
+  }
 });
 
 // API routes

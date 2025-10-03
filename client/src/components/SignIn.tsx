@@ -95,12 +95,6 @@ const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     }
   };
 
-  const handleDemoLogin = () => {
-    setFormData({
-      email: 'test@example.com',
-      password: 'test123'
-    });
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -235,14 +229,6 @@ const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
               )}
             </button>
 
-            {/* Demo Login Button */}
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
-            >
-              Use Demo Credentials
-            </button>
           </form>
 
           {/* Sign Up Link */}
@@ -259,14 +245,6 @@ const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
           </div>
         </div>
 
-        {/* Demo Credentials Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">Demo Credentials</h3>
-          <div className="text-sm text-blue-700">
-            <p><strong>Email:</strong> test@example.com</p>
-            <p><strong>Password:</strong> test123</p>
-          </div>
-        </div>
       </div>
     </div>
   );

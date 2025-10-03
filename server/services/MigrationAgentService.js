@@ -2,6 +2,7 @@ import GeminiEmbeddingService from './GeminiEmbeddingService.js';
 import CodeChunk from '../models/CodeChunk.js';
 import EcosystemMappingService from './EcosystemMappingService.js';
 import MigrationRecipesService from './MigrationRecipesService.js';
+import RedisService from './RedisService.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 class MigrationAgentService {
