@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import { authenticateToken as auth } from '../middleware/auth.js';
+import MigrationJob from '../models/MigrationJob.js';
+import CodeChunk from '../models/CodeChunk.js';
+
 const router = express.Router();
-const auth = require('../middleware/auth');
-const MigrationJob = require('../models/MigrationJob');
-const CodeChunk = require('../models/CodeChunk');
 
 // Get migration history for a user
 router.get('/history/:userId', auth, async (req, res) => {
@@ -303,4 +304,4 @@ router.get('/stats/:userId', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
