@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 class ApiService {
   private client: AxiosInstance;
@@ -265,6 +265,11 @@ class ApiService {
 
   async getSessionChunks(sessionId: string) {
     const response = await this.client.get(`/migrate/sessions/${sessionId}/chunks`);
+    return response.data;
+  }
+
+  async getChunksStatus(sessionId: string) {
+    const response = await this.client.get(`/migrate/chunks-status/${sessionId}?t=${Date.now()}`);
     return response.data;
   }
 

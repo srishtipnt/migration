@@ -2045,8 +2045,7 @@ const MigrationPage: React.FC = () => {
           console.log(` Checking chunks readiness (attempt ${attempts + 1}/${maxAttempts})...`);
           
           // Check if chunks are ready by calling a simple API endpoint
-          const chunksResponse = await fetch(`http://localhost:3000/api/migrate/chunks-status/${realSessionId}?t=${Date.now()}`);
-          const chunksData = await chunksResponse.json();
+          const chunksData = await apiService.getChunksStatus(realSessionId);
           
           if (chunksData.success && chunksData.chunksCount > 0) {
             console.log(` Chunks are ready! Found ${chunksData.chunksCount} chunks`);
