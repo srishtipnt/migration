@@ -11,10 +11,14 @@ export default defineConfig({
     rollupOptions: {
       external: [],
     },
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     fs: {
       allow: ['..'],
     },
   },
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  }
 });

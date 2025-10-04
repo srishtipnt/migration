@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Copy, Download, ChevronLeft, ChevronRight, FileText, FileCode, RotateCcw } from 'lucide-react';
+import { CheckCircle, Copy, Download, ChevronLeft, ChevronRight, FileText, FileCode } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MonacoCodeViewer from './MonacoCodeViewer';
 
 interface InlineMigrationResultsProps {
-  result: any;
+  result: Record<string, unknown>;
   originalFiles: { [key: string]: string };
   onStartOver: () => void;
 }
 
-const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result, originalFiles, onStartOver }) => {
+const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result, originalFiles }) => {
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [copiedFiles, setCopiedFiles] = useState<Set<number>>(new Set());
 
@@ -32,7 +33,7 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
     });
   };
 
-  const handleDownloadFile = (file: any) => {
+  const handleDownloadFile = (file: Record<string, unknown>) => {
     const processedContent = file.content
       ?.replace(/\\n/g, '\n')
       .replace(/\\r\\n/g, '\n')
@@ -48,10 +49,12 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
   };
 
   const handleDownloadAll = () => {
-    result.files.forEach((file: any) => {
-      handleDownloadFile(file);
-    });
-    toast.success('All files downloaded!');
+    if (result.files && Array.isArray(result.files)) {
+      result.files.forEach((file: Record<string, unknown>) => {
+        handleDownloadFile(file);
+      });
+      toast.success('All files downloaded!');
+    }
   };
 
   const nextFile = () => {
@@ -265,78 +268,41 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
               </div>
             </div>
 
-            {/* Clean Side-by-Side Code Display */}
+            {/* Monaco Editor Side-by-Side Code Display */}
             <div className="flex-1 overflow-hidden">
-              <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm">
-                {/* Side-by-Side Content */}
-                <div className="overflow-auto" style={{ maxHeight: '80vh' }}>
-                  {processedOriginalContent && processedMigratedContent ? (
-                    <div className="grid grid-cols-2 h-full">
-                      {/* Original Code Column */}
-                      <div className="border-r border-gray-200">
-                        {/* Original Code Header */}
-                        <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-4 py-3 z-10">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                              <span className="font-semibold text-gray-700">Original Code</span>
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                                {currentFile.filename}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {processedOriginalContent.length} chars • {processedOriginalContent.split('\n').length} lines
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Original Code Content */}
-                        <div className="p-4 h-full overflow-auto">
-                          <pre className="text-sm font-mono text-gray-800 leading-relaxed whitespace-pre-wrap">
-                            {processedOriginalContent}
-                          </pre>
-                        </div>
-                      </div>
-
-                      {/* Migrated Code Column */}
-                      <div>
-                        {/* Migrated Code Header */}
-                        <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-4 py-3 z-10">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                              <span className="font-semibold text-gray-700">Migrated Code</span>
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                {currentFile.migratedFilename}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {processedMigratedContent.length} chars • {processedMigratedContent.split('\n').length} lines
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Migrated Code Content */}
-                        <div className="p-4 h-full overflow-auto">
-                          <pre className="text-sm font-mono text-gray-800 leading-relaxed whitespace-pre-wrap">
-                            {processedMigratedContent}
-                          </pre>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-96 text-gray-500">
-                      <div className="text-center">
-                        <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Content to Display</h3>
-                        <p className="text-sm text-gray-500">
-                          The content is not available for this file.
-                        </p>
-                      </div>
-                    </div>
-                  )}
+              {processedOriginalContent && processedMigratedContent ? (
+                <MonacoCodeViewer
+                  originalCode={processedOriginalContent}
+                  migratedCode={processedMigratedContent}
+                  originalFileName={currentFile.filename}
+                  migratedFileName={currentFile.migratedFilename}
+                  onDownload={(code, filename) => {
+                    const blob = new Blob([code], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success(`Downloaded ${filename}`);
+                  }}
+                  onCopy={(code) => {
+                    navigator.clipboard.writeText(code).then(() => {
+                      toast.success('Code copied to clipboard!');
+                    });
+                  }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-96 text-gray-500 bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No Content to Display</h3>
+                    <p className="text-sm text-gray-500">
+                      The content is not available for this file.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}

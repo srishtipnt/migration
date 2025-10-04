@@ -7,6 +7,7 @@ import {
   AlertCircle, 
   Loader2
 } from 'lucide-react';
+import { useUpload } from '../contexts/UploadContext';
 
 interface FileUploadProps {
   onUpload: (files: File[]) => void;
@@ -27,6 +28,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
   const [uploadingFiles, setUploadingFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload, updateProgress, completeUpload, setUploading } = useUpload();
 
   // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -53,6 +55,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
   const handleFileSelect = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Start global upload state
+    startUpload('multiple', files[0].name, files.length);
+
     // Create uploading file objects
     const newUploadingFiles: UploadedFile[] = files.map((file, index) => ({
       id: `upload-${Date.now()}-${index}`,
@@ -65,14 +70,20 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
 
     setUploadingFiles(newUploadingFiles);
     setIsUploading(true);
+    setUploading(true);
 
     try {
       // Simulate upload progress
       for (let i = 0; i < newUploadingFiles.length; i++) {
         const file = newUploadingFiles[i];
+        const progress = Math.floor(((i + 1) / newUploadingFiles.length) * 100);
+        
         setUploadingFiles(prev => 
           prev.map(f => f.id === file.id ? { ...f, progress: 50 } : f)
         );
+        
+        // Update global progress
+        updateProgress(progress, file.name);
         
         // Simulate some delay
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -85,10 +96,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
       // Call the upload handler
       await onUpload(files);
 
+      // Complete global upload state
+      completeUpload();
+
       // Clear uploading files after a delay
       setTimeout(() => {
         setUploadingFiles([]);
         setIsUploading(false);
+        setUploading(false);
       }, 1000);
 
     } catch (error) {
@@ -97,8 +112,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
         prev.map(f => ({ ...f, status: 'error', error: 'Upload failed' }))
       );
       setIsUploading(false);
+      setUploading(false);
+      completeUpload();
     }
-  }, [onUpload]);
+  }, [onUpload, startUpload, updateProgress, completeUpload, setUploading]);
 
   // Handle file input change
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

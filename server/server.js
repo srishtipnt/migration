@@ -18,6 +18,9 @@ import RedisService from './services/RedisService.js';
 // Import background job processor
 import BackgroundJobProcessor from './services/BackgroundJobProcessor.js';
 
+// Import cleanup service
+import cleanupService from './services/CleanupService.js';
+
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
@@ -31,6 +34,7 @@ import saveMigrationRoutes from './routes/saveMigrationRoutes.js';
 import systematicMigrationRoutes from './routes/systematicMigrationRoutes.js';
 import languageDetectionRoutes from './routes/languageDetectionRoutes.js';
 import migrationHistoryRoutes from './routes/migrationHistoryRoutes.js';
+import cleanupRoutes from './routes/cleanupRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -133,6 +137,7 @@ app.use('/api/save-migration', saveMigrationRoutes);
 app.use('/api/systematic-migration', systematicMigrationRoutes);
 app.use('/api/language-detection', languageDetectionRoutes);
 app.use('/api/migrations', migrationHistoryRoutes);
+app.use('/api/cleanup', cleanupRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -212,7 +217,7 @@ const server = app.listen(PORT, async () => {
   console.log(`📁 Upload directory: ${process.env.UPLOAD_PATH || './uploads'}`);
   console.log(`🗄️  Database: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/migration-service'}`);
   console.log(`🔧 Debug mode: Enhanced logging enabled`);
-  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/force-chunking, /api/auto-chunking, /api/systematic-migration, /api/language-detection`);
+  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/force-chunking, /api/auto-chunking, /api/systematic-migration, /api/language-detection, /api/cleanup`);
   
   // Start background job processor
   try {
@@ -222,6 +227,14 @@ const server = app.listen(PORT, async () => {
     console.log(`✅ Background job processor started successfully`);
   } catch (error) {
     console.error(`❌ Failed to start background job processor:`, error);
+  }
+
+  // Initialize cleanup service (cron job will start automatically)
+  try {
+    console.log(`🧹 Cleanup service initialized - cron job will run every 30 minutes`);
+    console.log(`🧹 To manually trigger cleanup, use: cleanupService.triggerCleanup()`);
+  } catch (error) {
+    console.error(`❌ Failed to initialize cleanup service:`, error);
   }
 });
 

@@ -9,11 +9,13 @@ import HistoryPage from './pages/HistoryPage';
 import HelpPage from './pages/HelpPage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import { UploadProvider } from './contexts/UploadContext';
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <UploadProvider>
+      <Router>
+        <Routes>
         <Route 
           path="/" 
           element={
@@ -74,26 +76,33 @@ function App() {
       <Toaster 
         position="top-right"
         toastOptions={{
-          duration: 4000,
+          duration: 2000,
           style: {
             background: '#363636',
             color: '#fff',
           },
           success: {
-            duration: 3000,
+            duration: 1500,
             style: {
               background: '#10B981',
             },
           },
           error: {
-            duration: 5000,
+            duration: 2500,
             style: {
               background: '#EF4444',
             },
           },
+          loading: {
+            duration: 1000,
+            style: {
+              background: '#3B82F6',
+            },
+          },
         }}
       />
-    </Router>
+      </Router>
+    </UploadProvider>
   );
 }
 

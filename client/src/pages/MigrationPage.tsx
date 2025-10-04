@@ -1,29 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FileText, Archive, ArrowRight, CheckCircle, Tag } from 'lucide-react';
 import SingleFileCloudinaryUpload from '../components/SingleFileCloudinaryUpload';
 import ZipUpload from '../components/ZipUpload';
 import InlineMigrationResults from '../components/InlineMigrationResults';
+import AuthPrompt from '../components/AuthPrompt';
 import apiService from '../services/api';
 import cleanupService from '../services/cleanupService';
 import { LanguageOption, TwoLevelLanguageInfo } from '../types';
 
-// Enhanced dropdown styling for better visual appeal
-const dropdownStyles = `
-  select option {
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin: 2px 0;
-  }
-  select option:hover {
-    background-color: #f3f4f6;
-  }
-  select option:checked {
-    background-color: #e5e7eb;
-  }
-`;
 
 const MigrationPage: React.FC = () => {
+  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -340,7 +329,7 @@ const MigrationPage: React.FC = () => {
     if (detectedFrom && detectedTo) {
       const tagInfo = detection.tag ? ` (${detection.tag})` : '';
       toast.success(`Auto-detected: ${detectedFrom}${tagInfo} → ${detectedTo}`, {
-        duration: 4000,
+        duration: 2000,
         icon: ''
       });
     }
@@ -2001,7 +1990,7 @@ const MigrationPage: React.FC = () => {
       if (uploadedFilename && !validateFileLanguageMatch(uploadedFilename, fromLanguage, originalFiles[uploadedFilename])) {
         const detectedLanguage = getLanguageFromFileExtension(uploadedFilename, originalFiles[uploadedFilename]);
         toast.error(`File type mismatch. Your file (${uploadedFilename}) is detected as ${detectedLanguage}, but you selected ${fromLanguage}. Please select the correct source language.`, {
-          duration: 5000,
+          duration: 3000,
           icon: ''
         });
         return;
@@ -2010,7 +1999,7 @@ const MigrationPage: React.FC = () => {
       // Validate migration pair before starting conversion
       if (!isValidMigrationPair(fromLanguage, toLanguage)) {
         toast.error(`Cannot migrate from ${fromLanguage} to ${toLanguage}. Please select a compatible language pair.`, {
-          duration: 5000,
+          duration: 3000,
           icon: ''
         });
         return;
@@ -2019,7 +2008,7 @@ const MigrationPage: React.FC = () => {
       setIsConverting(true);
       toast.loading('Converting code... This may take up to 3 minutes for complex migrations.', { 
         id: 'conversion',
-        duration: 180000 // 3 minutes
+        duration: 10000 // 10 seconds for loading toast
       });
       
       // Use the real session ID from the upload process
@@ -2163,7 +2152,7 @@ const MigrationPage: React.FC = () => {
         if (apiError.message.includes('timeout') || apiError.message.includes('ECONNABORTED')) {
           toast.error('Migration request timed out. The server may be processing a large file. Please try again with a smaller file.', { 
             id: 'conversion',
-            duration: 5000
+            duration: 3000
           });
         } else {
         toast.success(`Demo: Code converted from ${fromLanguage} to ${toLanguage}!`, { id: 'conversion' });
@@ -2212,6 +2201,15 @@ const MigrationPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
 
+        // First check if user has a token
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setError('Please log in to access the migration dashboard');
+          setUserId(null);
+          setIsLoading(false);
+          return;
+        }
+
         // Add timeout to prevent infinite loading
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Initialization timeout')), 10000)
@@ -2232,12 +2230,15 @@ const MigrationPage: React.FC = () => {
       } catch (err) {
         if (isMounted) {
           console.error('Failed to initialize user:', err);
-          // Don't show error for timeout or network issues, just proceed
-          if (err instanceof Error && err.message !== 'Initialization timeout') {
-          setError('Please log in to access the migration dashboard');
+          // Check if user is actually authenticated by checking token
+          const token = localStorage.getItem('authToken');
+          if (!token) {
+            setError('Please log in to access the migration dashboard');
+            setUserId(null);
+          } else {
+            // Token exists but API call failed - might be network issue
+            setUserId('authenticated-user');
           }
-          // Set a default user ID to allow the app to work
-          setUserId('default-user');
         }
       } finally {
         if (isMounted) {
@@ -2253,7 +2254,14 @@ const MigrationPage: React.FC = () => {
       if (isMounted) {
         console.warn('Initialization timeout - forcing loading to stop');
         setIsLoading(false);
-        setUserId('default-user');
+        // Check if user has token, if not show auth prompt
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setError('Please log in to access the migration dashboard');
+          setUserId(null);
+        } else {
+          setUserId('authenticated-user');
+        }
       }
     }, 15000); // 15 seconds total fallback
 
@@ -2288,22 +2296,15 @@ const MigrationPage: React.FC = () => {
   }
 
 
-  // Show error state
-  if (error) {
+  // Show authentication prompt instead of error
+  if (error && error.includes('log in')) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.href = '/login'} 
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
+      <AuthPrompt 
+        title="Sign In Required"
+        description="Please sign in to access the migration dashboard and start migrating your code"
+        showBackButton={true}
+        onBack={() => navigate('/')}
+      />
     );
   }
 

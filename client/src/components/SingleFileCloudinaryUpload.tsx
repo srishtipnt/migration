@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import apiService from '../services/api';
+import { useUpload } from '../contexts/UploadContext';
 
 interface SingleFileUploadProps {
   onUpload: (file: File) => Promise<void>;
@@ -22,6 +23,7 @@ const SingleFileCloudinaryUpload: React.FC<SingleFileUploadProps> = ({ onUpload 
   const [uploadingFile, setUploadingFile] = useState<UploadedFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload, updateProgress, completeUpload, setUploading } = useUpload();
 
   // Handle drag events
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -61,6 +63,9 @@ const SingleFileCloudinaryUpload: React.FC<SingleFileUploadProps> = ({ onUpload 
       return;
     }
 
+    // Start global upload state
+    startUpload('single', file.name);
+
     // Create uploading file object
     const newUploadingFile: UploadedFile = {
       id: `upload-${Date.now()}`,
@@ -73,27 +78,36 @@ const SingleFileCloudinaryUpload: React.FC<SingleFileUploadProps> = ({ onUpload 
 
     setUploadingFile(newUploadingFile);
     setIsUploading(true);
+    setUploading(true);
 
     try {
       // Simulate upload progress
       setUploadingFile(prev => prev ? { ...prev, progress: 25 } : null);
+      updateProgress(25, file.name);
       await new Promise(resolve => setTimeout(resolve, 200));
       
       setUploadingFile(prev => prev ? { ...prev, progress: 50 } : null);
+      updateProgress(50, file.name);
       await new Promise(resolve => setTimeout(resolve, 200));
       
       setUploadingFile(prev => prev ? { ...prev, progress: 75 } : null);
+      updateProgress(75, file.name);
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Call the upload handler
       await onUpload(file);
 
       setUploadingFile(prev => prev ? { ...prev, progress: 100, status: 'uploaded' } : null);
+      updateProgress(100, file.name);
+
+      // Complete global upload state
+      completeUpload();
 
       // Clear uploading file after a delay
       setTimeout(() => {
         setUploadingFile(null);
         setIsUploading(false);
+        setUploading(false);
       }, 1000);
 
     } catch (error) {
@@ -104,8 +118,10 @@ const SingleFileCloudinaryUpload: React.FC<SingleFileUploadProps> = ({ onUpload 
         error: 'Upload failed' 
       } : null);
       setIsUploading(false);
+      setUploading(false);
+      completeUpload();
     }
-  }, [onUpload]);
+  }, [onUpload, startUpload, updateProgress, completeUpload, setUploading]);
 
   // Handle file input change
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

@@ -13,6 +13,7 @@ import {
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import apiService from '../services/api';
+import { useUpload } from '../contexts/UploadContext';
 
 interface ZipUploadProps {
   onZipUpload: (file: File, abortController: AbortController) => void;
@@ -44,6 +45,7 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInProgressRef = useRef<boolean>(false); // Prevent duplicate uploads
+  const { startUpload, updateProgress, completeUpload, setUploading } = useUpload();
 
   // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -89,15 +91,31 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
     
     uploadInProgressRef.current = true;
     
+    // Start global upload state
+    startUpload('zip', file.name);
+    setUploading(true);
+    
     try {
       console.log('🚀 Processing ZIP file:', file.name);
+      
+      // Update progress
+      updateProgress(10, file.name);
       
       // Create AbortController BEFORE calling parent handler
       const abortController = new AbortController();
       console.log('🎛️ Created AbortController for ZIP upload:', file.name);
       
+      // Update progress
+      updateProgress(50, file.name);
+      
       // Call the parent handler with the AbortController
       await onZipUpload(file, abortController);
+      
+      // Update progress
+      updateProgress(100, file.name);
+      
+      // Complete global upload state
+      completeUpload();
       
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -107,10 +125,12 @@ const ZipUpload: React.FC<ZipUploadProps> = ({ onZipUpload, onClearZip }) => {
         console.error('❌ ZIP processing failed:', error);
         alert(`ZIP processing failed: ${error.message}`);
       }
+      completeUpload();
     } finally {
       uploadInProgressRef.current = false;
+      setUploading(false);
     }
-  }, [onZipUpload]);
+  }, [onZipUpload, startUpload, updateProgress, completeUpload, setUploading]);
 
   // Handle ZIP file selection
   const handleZipFileSelect = useCallback(async (file: File) => {

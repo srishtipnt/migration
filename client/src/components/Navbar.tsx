@@ -11,10 +11,12 @@ import {
   Home,
   Upload,
   History,
-  HelpCircle
+  HelpCircle,
+  Lock
 } from 'lucide-react';
 import { NavItem } from '../types';
 import cleanupService from '../services/cleanupService';
+import { useUpload } from '../contexts/UploadContext';
 
 interface NavbarProps {
   user?: {
@@ -30,6 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const { uploadState } = useUpload();
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -103,25 +106,40 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.id}
-                to={item.href}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive(item.href)
-                    ? 'text-emerald-600 bg-emerald-50 border border-emerald-200 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-                {item.badge && (
-                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-1">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isDisabled = uploadState.isUploading && !isActive(item.href);
+              return (
+                <Link
+                  key={item.id}
+                  to={item.href}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActive(item.href)
+                      ? 'text-emerald-600 bg-emerald-50 border border-emerald-200 shadow-sm'
+                      : isDisabled
+                      ? 'text-gray-400 cursor-not-allowed opacity-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
+                  }`}
+                  onClick={(e) => {
+                    if (isDisabled) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  {isDisabled ? <Lock className="w-4 h-4" /> : item.icon}
+                  {item.label}
+                  {uploadState.isUploading && !isActive(item.href) && (
+                    <span className="bg-green-500 text-white text-xs rounded-full px-2 py-0.5 ml-1">
+                      Uploading...
+                    </span>
+                  )}
+                  {item.badge && (
+                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-1">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Right side actions */}
@@ -213,26 +231,42 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4">
             <div className="space-y-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.id}
-                  to={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    isActive(item.href)
-                      ? 'text-emerald-600 bg-emerald-50 border border-emerald-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {item.icon}
-                  {item.label}
-                  {item.badge && (
-                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-auto">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const isDisabled = uploadState.isUploading && !isActive(item.href);
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      isActive(item.href)
+                        ? 'text-emerald-600 bg-emerald-50 border border-emerald-200'
+                        : isDisabled
+                        ? 'text-gray-400 cursor-not-allowed opacity-50'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                    onClick={(e) => {
+                      if (isDisabled) {
+                        e.preventDefault();
+                      } else {
+                        setIsMobileMenuOpen(false);
+                      }
+                    }}
+                  >
+                    {isDisabled ? <Lock className="w-4 h-4" /> : item.icon}
+                    {item.label}
+                    {uploadState.isUploading && !isActive(item.href) && (
+                      <span className="bg-green-500 text-white text-xs rounded-full px-2 py-0.5 ml-auto">
+                        Uploading...
+                      </span>
+                    )}
+                    {item.badge && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-auto">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
