@@ -213,26 +213,20 @@ app.use((error, req, res, next) => {
 const PORT = 3000;
 
 const server = app.listen(PORT, async () => {
-  console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log(`📁 Upload directory: ${process.env.UPLOAD_PATH || './uploads'}`);
-  console.log(`🗄️  Database: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/migration-service'}`);
-  console.log(`🔧 Debug mode: Enhanced logging enabled`);
-  console.log(`📋 Routes: /api/auth, /api/files, /api/zip-cloudinary, /api/single-file-cloudinary, /api/migration-jobs, /api/force-chunking, /api/auto-chunking, /api/systematic-migration, /api/language-detection, /api/cleanup`);
+  console.log(`🚀 Server running on port ${PORT}`);
   
   // Start background job processor
   try {
-    console.log(`🔄 Starting background job processor...`);
     jobProcessorInstance = new BackgroundJobProcessor();
     await jobProcessorInstance.startProcessing();
-    console.log(`✅ Background job processor started successfully`);
+    console.log(`✅ Background services started`);
   } catch (error) {
-    console.error(`❌ Failed to start background job processor:`, error);
+    console.error(`❌ Failed to start background services:`, error);
   }
 
-  // Initialize cleanup service (cron job will start automatically)
+  // Initialize cleanup service
   try {
-    console.log(`🧹 Cleanup service initialized - cron job will run every 30 minutes`);
-    console.log(`🧹 To manually trigger cleanup, use: cleanupService.triggerCleanup()`);
+    console.log(`🧹 Cleanup service initialized`);
   } catch (error) {
     console.error(`❌ Failed to initialize cleanup service:`, error);
   }
@@ -242,23 +236,21 @@ const server = app.listen(PORT, async () => {
 let jobProcessorInstance = null;
 
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
+  console.log('Shutting down gracefully...');
   if (jobProcessorInstance) {
     jobProcessorInstance.stopProcessing();
   }
   server.close(() => {
-    console.log('Process terminated');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
+  console.log('Shutting down gracefully...');
   if (jobProcessorInstance) {
     jobProcessorInstance.stopProcessing();
   }
   server.close(() => {
-    console.log('Process terminated');
     process.exit(0);
   });
 });

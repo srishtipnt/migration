@@ -17,11 +17,8 @@ class CleanupService {
   setupCronJob() {
     // Run every 30 minutes
     cron.schedule('*/30 * * * *', () => {
-      console.log('🧹 Starting scheduled cleanup of pending uploads...');
       this.cleanupPendingUploads();
     });
-
-    console.log('✅ Cleanup cron job scheduled to run every 30 minutes');
   }
 
   /**
@@ -29,7 +26,6 @@ class CleanupService {
    */
   async cleanupPendingUploads() {
     if (this.isRunning) {
-      console.log('🧹 Cleanup already in progress, skipping...');
       return;
     }
 
@@ -37,16 +33,12 @@ class CleanupService {
     const startTime = Date.now();
 
     try {
-      console.log('🧹 Starting cleanup of pending uploads...');
-
       // Find pending migration jobs older than 1 hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const pendingJobs = await MigrationJob.find({
         status: 'pending',
         createdAt: { $lt: oneHourAgo }
       });
-
-      console.log(`🧹 Found ${pendingJobs.length} pending migration jobs to clean up`);
 
       let cleanedJobs = 0;
       let cleanedFiles = 0;
@@ -55,11 +47,8 @@ class CleanupService {
 
       for (const job of pendingJobs) {
         try {
-          console.log(`🧹 Cleaning up job: ${job.sessionId}`);
-
           // 1. Find all files associated with this session
           const files = await FileStorage.find({ sessionId: job.sessionId });
-          console.log(`🧹 Found ${files.length} files for session ${job.sessionId}`);
 
           // 2. Delete files from Cloudinary
           for (const file of files) {
@@ -67,9 +56,8 @@ class CleanupService {
               try {
                 await this.deleteFromCloudinary(file.public_id, file.resource_type);
                 cloudinaryDeleted++;
-                console.log(`☁️  Deleted from Cloudinary: ${file.public_id}`);
               } catch (error) {
-                console.error(`❌ Failed to delete from Cloudinary: ${file.public_id}`, error.message);
+                console.error(`Failed to delete from Cloudinary: ${file.public_id}`, error.message);
               }
             }
           }
@@ -79,23 +67,20 @@ class CleanupService {
           if (chunks.length > 0) {
             await CodeChunk.deleteMany({ jobId: job._id });
             cleanedChunks += chunks.length;
-            console.log(`🧹 Deleted ${chunks.length} code chunks for job ${job.sessionId}`);
           }
 
           // 4. Delete files from MongoDB
           if (files.length > 0) {
             await FileStorage.deleteMany({ sessionId: job.sessionId });
             cleanedFiles += files.length;
-            console.log(`🧹 Deleted ${files.length} files from MongoDB for session ${job.sessionId}`);
           }
 
           // 5. Delete the migration job
           await MigrationJob.findByIdAndDelete(job._id);
           cleanedJobs++;
-          console.log(`🧹 Deleted migration job: ${job.sessionId}`);
 
         } catch (error) {
-          console.error(`❌ Error cleaning up job ${job.sessionId}:`, error.message);
+          console.error(`Error cleaning up job ${job.sessionId}:`, error.message);
         }
       }
 
@@ -103,14 +88,12 @@ class CleanupService {
       await this.cleanupOrphanedFiles();
 
       const duration = Date.now() - startTime;
-      console.log(`🧹 Cleanup completed in ${duration}ms:`);
-      console.log(`   - Jobs cleaned: ${cleanedJobs}`);
-      console.log(`   - Files cleaned: ${cleanedFiles}`);
-      console.log(`   - Chunks cleaned: ${cleanedChunks}`);
-      console.log(`   - Cloudinary assets deleted: ${cloudinaryDeleted}`);
+      if (cleanedJobs > 0 || cleanedFiles > 0) {
+        console.log(`Cleanup completed: ${cleanedJobs} jobs, ${cleanedFiles} files, ${cleanedChunks} chunks, ${cloudinaryDeleted} cloudinary assets`);
+      }
 
     } catch (error) {
-      console.error('❌ Error during cleanup:', error);
+      console.error('Error during cleanup:', error);
     } finally {
       this.isRunning = false;
     }

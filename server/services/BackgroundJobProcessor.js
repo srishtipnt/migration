@@ -24,12 +24,10 @@ class BackgroundJobProcessor {
    */
   async startProcessing() {
     if (this.isProcessing) {
-      console.log('🔄 Job processor already running');
       return;
     }
 
     this.isProcessing = true;
-    console.log('🚀 Starting background job processor');
 
     // Ensure temp workspace directory exists
     await this.ensureTempWorkspace();
@@ -51,7 +49,6 @@ class BackgroundJobProcessor {
    * Stop processing jobs
    */
   stopProcessing() {
-    console.log('🛑 Stopping background job processor');
     this.isProcessing = false;
   }
 
@@ -61,7 +58,6 @@ class BackgroundJobProcessor {
   async processNextJob() {
     // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
-      console.log('⏳ Waiting for MongoDB connection...');
       return;
     }
 
@@ -75,16 +71,14 @@ class BackgroundJobProcessor {
       return; // No pending or processing jobs
     }
 
-    console.log(`📋 Processing job: ${job.sessionId}`);
     this.currentJobs.add(job._id);
 
     try {
       await job.updateStatus('processing');
       await this.processJob(job);
       await job.updateStatus('ready');
-      console.log(`✅ Job completed: ${job.sessionId}`);
     } catch (error) {
-      console.error(`❌ Job failed: ${job.sessionId}`, error);
+      console.error(`Job failed: ${job.sessionId}`, error);
       await job.updateStatus('failed', error);
     } finally {
       this.currentJobs.delete(job._id);

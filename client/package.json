@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "render-postbuild": "echo 'Frontend build completed successfully'"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
