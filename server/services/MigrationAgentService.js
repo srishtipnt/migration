@@ -414,10 +414,10 @@ class MigrationAgentService {
       // Sort by similarity and take top chunks
       const relevantChunks = chunksWithSimilarity
         .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 10) // Top 10 most relevant chunks
-        .filter(chunk => chunk.similarity > 0.1); // Lower threshold for demo
+        .slice(0, 50) // Top 50 most relevant chunks to include more files
+        .filter(chunk => chunk.similarity > 0.05); // Lower threshold to include more chunks
 
-      console.log(` Found ${relevantChunks.length} relevant chunks with similarity > 0.1`);
+      console.log(` Found ${relevantChunks.length} relevant chunks with similarity > 0.05`);
       if (relevantChunks.length > 0) {
         console.log(` Similarity scores: ${relevantChunks.map(c => c.similarity.toFixed(3)).join(', ')}`);
       }
