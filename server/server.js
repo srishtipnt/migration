@@ -35,6 +35,7 @@ import systematicMigrationRoutes from './routes/systematicMigrationRoutes.js';
 import languageDetectionRoutes from './routes/languageDetectionRoutes.js';
 import migrationHistoryRoutes from './routes/migrationHistoryRoutes.js';
 import cleanupRoutes from './routes/cleanupRoutes.js';
+import zipAnalysisRoutes from './routes/zipAnalysisRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -138,6 +139,7 @@ app.use('/api/systematic-migration', systematicMigrationRoutes);
 app.use('/api/language-detection', languageDetectionRoutes);
 app.use('/api/migrations', migrationHistoryRoutes);
 app.use('/api/cleanup', cleanupRoutes);
+app.use('/api/zip-analysis', zipAnalysisRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

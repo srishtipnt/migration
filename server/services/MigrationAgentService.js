@@ -106,22 +106,89 @@ class MigrationAgentService {
    */
   generateMigratedFilename(chunk, toLang) {
     const originalFilename = chunk?.fileName || chunk?.filename || 'converted.js';
-    const targetExtension = this.getFileExtensionForLanguage(toLang);
+    const extension = originalFilename.split('.').pop().toLowerCase();
+    const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
+    const content = chunk?.content || '';
     
-    // Debug logging
     console.log(' generateMigratedFilename Debug:');
     console.log('  - originalFilename:', originalFilename);
+    console.log('  - extension:', extension);
     console.log('  - toLang:', toLang);
-    console.log('  - targetExtension:', targetExtension);
+    console.log('  - content length:', content.length);
     
-    // Remove existing extension and add target extension
-    const baseName = originalFilename.replace(/\.[^/.]+$/, '');
-    const result = `${baseName}${targetExtension}`;
+    // Check if content contains JSX syntax
+    const hasJSX = this.containsJSX(content);
+    console.log('  - hasJSX:', hasJSX);
     
-    console.log('  - baseName:', baseName);
+    // For TypeScript to JavaScript conversion
+    if (toLang === 'javascript') {
+      if (extension === 'ts') {
+        // .ts files should become .js (not .jsx) unless they contain JSX
+        return hasJSX ? `${nameWithoutExt}.jsx` : `${nameWithoutExt}.js`;
+      } else if (extension === 'tsx') {
+        // .tsx files should become .jsx (they contain JSX)
+        return `${nameWithoutExt}.jsx`;
+      } else if (extension === 'js') {
+        // .js files should stay .js (not become .jsx) unless they contain JSX
+        return hasJSX ? `${nameWithoutExt}.jsx` : `${nameWithoutExt}.js`;
+      }
+    }
+    
+    // For JavaScript to TypeScript conversion
+    if (toLang === 'typescript') {
+      if (extension === 'js') {
+        // .js files should become .ts (not .tsx) unless they contain JSX
+        return hasJSX ? `${nameWithoutExt}.tsx` : `${nameWithoutExt}.ts`;
+      } else if (extension === 'jsx') {
+        // .jsx files should become .tsx (they contain JSX)
+        return `${nameWithoutExt}.tsx`;
+      }
+    }
+    
+    // For other conversions, use the target language extension
+    const targetExtension = this.getFileExtensionForLanguage(toLang);
+    const result = `${nameWithoutExt}${targetExtension}`;
+    
     console.log('  - result:', result);
-    
     return result;
+  }
+
+  /**
+   * Check if content contains JSX syntax
+   * @param {string} content - File content
+   * @returns {boolean} Whether content contains JSX
+   */
+  containsJSX(content) {
+    if (!content || typeof content !== 'string') {
+      return false;
+    }
+    
+    // JSX patterns to detect
+    const jsxPatterns = [
+      /<[A-Z]\w+/,                    // <Component
+      /<[a-z]+\w*/,                   // <div, <span, etc.
+      /className\s*=/,                // className=
+      /onClick\s*=/,                 // onClick=
+      /onChange\s*=/,                // onChange=
+      /onSubmit\s*=/,                // onSubmit=
+      /return\s*\(/,                 // return (
+      /<[A-Z]\w+[^>]*>/,            // <Component>
+      /<\/[A-Z]\w+>/,                // </Component>
+      /<\/[a-z]+>/,                  // </div>
+      /{.*}/,                        // {expression}
+      /\.map\s*\(/,                  // .map(
+      /key\s*=/                      // key=
+    ];
+    
+    // Check for JSX patterns
+    for (const pattern of jsxPatterns) {
+      if (pattern.test(content)) {
+        console.log('  - JSX pattern found:', pattern);
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /**
@@ -272,10 +339,10 @@ class MigrationAgentService {
       const relevantChunks = await this.findRelevantChunks(sessionId, commandEmbedding, userId);
       console.log(` Found ${relevantChunks.length} relevant chunks`);
 
-      // Step 4: Generate migration using AI
-      console.log(`🤖 Generating migration with AI...`);
-      const migrationResult = await this.generateMigration(finalCommand, relevantChunks, options);
-      console.log(` Migration generated successfully`);
+      // Step 4: Process each file individually to preserve logic
+      console.log(`🔄 Processing files individually to preserve logic...`);
+      const migrationResult = await this.processFilesIndividually(finalCommand, relevantChunks, options);
+      console.log(` Individual file processing completed`);
 
       return {
         success: true,
@@ -384,6 +451,16 @@ class MigrationAgentService {
       }
 
       console.log(` Total chunks found: ${allChunks.length}`);
+      
+      if (allChunks.length > 0) {
+        console.log(` Chunk details:`, allChunks.map(c => ({
+          id: c._id,
+          filename: c.filename || c.fileName,
+          chunkType: c.chunkType,
+          contentLength: c.content?.length || 0,
+          hasEmbedding: !!c.embedding
+        })));
+      }
 
       if (allChunks.length === 0) {
         console.log('⚠️ No chunks found for this session');
@@ -412,14 +489,54 @@ class MigrationAgentService {
       });
 
       // Sort by similarity and take top chunks
-      const relevantChunks = chunksWithSimilarity
+      let relevantChunks = chunksWithSimilarity
         .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 50) // Top 50 most relevant chunks to include more files
-        .filter(chunk => chunk.similarity > 0.05); // Lower threshold to include more chunks
+        .slice(0, 20) // Top 20 most relevant chunks (increased from 10)
+        .filter(chunk => chunk.similarity > 0.05); // Much lower threshold to include more chunks
 
       console.log(` Found ${relevantChunks.length} relevant chunks with similarity > 0.05`);
       if (relevantChunks.length > 0) {
         console.log(` Similarity scores: ${relevantChunks.map(c => c.similarity.toFixed(3)).join(', ')}`);
+      }
+      
+      // If still no chunks found, take all chunks regardless of similarity
+      if (relevantChunks.length === 0 && allChunks.length > 0) {
+        console.log(`⚠️ No chunks passed similarity filter, using all ${allChunks.length} chunks`);
+        relevantChunks = allChunks.slice(0, 20); // Take up to 20 chunks
+      }
+      
+      // Ensure we have chunks from multiple files, not just one file
+      const filesRepresented = new Set(relevantChunks.map(c => c.fileName || c.filename));
+      console.log(`📁 Files represented in chunks: ${filesRepresented.size}`);
+      console.log(`📁 File names: ${Array.from(filesRepresented).join(', ')}`);
+      
+      // If we only have chunks from one file, try to get chunks from other files too
+      if (filesRepresented.size === 1 && allChunks.length > relevantChunks.length) {
+        console.log(`⚠️ Only one file represented, trying to include more files`);
+        
+        // Group chunks by file
+        const chunksByFile = new Map();
+        allChunks.forEach(chunk => {
+          const filename = chunk.fileName || chunk.filename || 'unknown';
+          if (!chunksByFile.has(filename)) {
+            chunksByFile.set(filename, []);
+          }
+          chunksByFile.get(filename).push(chunk);
+        });
+        
+        // Take top chunks from each file
+        const balancedChunks = [];
+        for (const [filename, fileChunks] of chunksByFile) {
+          const topChunks = fileChunks
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, Math.max(1, Math.floor(20 / chunksByFile.size))); // Distribute chunks across files
+          balancedChunks.push(...topChunks);
+        }
+        
+        if (balancedChunks.length > 0) {
+          relevantChunks = balancedChunks.slice(0, 20);
+          console.log(`📁 Balanced selection: ${relevantChunks.length} chunks from ${new Set(relevantChunks.map(c => c.fileName || c.filename)).size} files`);
+        }
       }
       
       return relevantChunks;
@@ -481,6 +598,163 @@ class MigrationAgentService {
         recipeUsed: MigrationRecipesService.identifyRecipe(chunk.content, fromLang, toLang)?.name
       };
     });
+  }
+
+  /**
+   * Process each file individually to preserve logic
+   * @param {string} command - The user's command
+   * @param {Array} relevantChunks - Relevant code chunks
+   * @param {Object} options - Migration options
+   * @returns {Object} The migration result
+   */
+  async processFilesIndividually(command, relevantChunks, options = {}) {
+    try {
+      console.log(`🔄 Processing ${relevantChunks.length} chunks individually`);
+      
+      // Group chunks by file
+      const filesMap = new Map();
+      for (const chunk of relevantChunks) {
+        const filename = chunk.fileName || chunk.filename || 'unknown';
+        if (!filesMap.has(filename)) {
+          filesMap.set(filename, []);
+        }
+        filesMap.get(filename).push(chunk);
+      }
+      
+      console.log(`📁 Found ${filesMap.size} unique files to process`);
+      
+      const results = {
+        migratedCode: '',
+        summary: `Converted ${filesMap.size} files individually`,
+        changes: [],
+        files: [],
+        warnings: [],
+        recommendations: []
+      };
+      
+      // Process each file individually
+      for (const [filename, fileChunks] of filesMap) {
+        try {
+          console.log(`🔄 Processing file: ${filename} (${fileChunks.length} chunks)`);
+          
+          // Check if this file should be converted based on its type
+          const shouldConvert = this.shouldConvertFile(filename, options);
+          if (!shouldConvert) {
+            console.log(`⏭️ Skipping ${filename} - not suitable for conversion`);
+            continue;
+          }
+          
+          // Combine chunks for this file
+          const fileContent = fileChunks.map(chunk => chunk.content).join('\n\n');
+          
+          // Convert this file individually
+          const fileResult = await this.generateMigration(command, fileChunks, options);
+          
+          if (fileResult && fileResult.migratedCode) {
+            // Generate new filename based on file type
+            const newFilename = this.generateMigratedFilename(fileChunks[0], options.toLang);
+            
+            results.files.push({
+              filename: filename,
+              migratedFilename: newFilename,
+              content: fileResult.migratedCode
+            });
+            
+            results.changes.push(`Converted ${filename} to ${newFilename}`);
+            
+            console.log(`✅ Converted: ${filename} → ${newFilename}`);
+          } else {
+            console.log(`⚠️ No result for file: ${filename}`);
+          }
+          
+        } catch (error) {
+          console.error(`❌ Error processing file ${filename}:`, error.message);
+          results.warnings.push(`Failed to convert ${filename}: ${error.message}`);
+        }
+      }
+      
+      // Combine all migrated code for the main result
+      if (results.files.length > 0) {
+        results.migratedCode = results.files[0].content; // Use first file as main result
+        results.summary = `Successfully converted ${results.files.length} files individually`;
+      }
+      
+      console.log(`📊 Individual processing complete: ${results.files.length} files converted`);
+      return results;
+      
+    } catch (error) {
+      console.error('❌ Individual file processing failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a file should be converted based on its type and target language
+   * @param {string} filename - The filename
+   * @param {Object} options - Migration options
+   * @returns {boolean} Whether the file should be converted
+   */
+  shouldConvertFile(filename, options) {
+    const extension = filename.split('.').pop().toLowerCase();
+    const fromLang = options.fromLang?.toLowerCase();
+    const toLang = options.toLang?.toLowerCase();
+    
+    console.log(`🔍 Checking file: ${filename} (${extension}) for ${fromLang} → ${toLang} conversion`);
+    
+    // Files that should NOT be converted
+    const skipExtensions = [
+      '.html', '.htm', '.css', '.scss', '.sass', '.less',
+      '.json', '.xml', '.yaml', '.yml', '.toml',
+      '.md', '.txt', '.rst', '.pdf',
+      '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico',
+      '.woff', '.woff2', '.ttf', '.eot',
+      '.mp4', '.mp3', '.wav', '.avi',
+      '.zip', '.tar', '.gz', '.rar'
+    ];
+    
+    if (skipExtensions.includes(`.${extension}`)) {
+      console.log(`⏭️ Skipping ${filename} - static file type`);
+      return false;
+    }
+    
+    // Files that should be converted
+    const convertExtensions = [
+      '.js', '.ts', '.jsx', '.tsx',
+      '.py', '.java', '.c', '.cpp', '.cc', '.cxx',
+      '.php', '.rb', '.go', '.rs', '.swift', '.kt',
+      '.scala', '.clj', '.hs', '.ml', '.fs', '.dart', '.lua'
+    ];
+    
+    if (convertExtensions.includes(`.${extension}`)) {
+      console.log(`✅ Converting ${filename} - code file type`);
+      return true;
+    }
+    
+    // For specific language conversions, check if the file matches
+    if (fromLang === 'typescript' && toLang === 'javascript') {
+      // Only convert TypeScript files (.ts, .tsx)
+      return extension === 'ts' || extension === 'tsx';
+    }
+    
+    if (fromLang === 'javascript' && toLang === 'typescript') {
+      // Only convert JavaScript files (.js, .jsx)
+      return extension === 'js' || extension === 'jsx';
+    }
+    
+    // For TSX to JSX conversion specifically
+    if (fromLang === 'tsx' && toLang === 'jsx') {
+      // Only convert TSX files
+      return extension === 'tsx';
+    }
+    
+    // For TS to JS conversion specifically  
+    if (fromLang === 'ts' && toLang === 'js') {
+      // Only convert TS files
+      return extension === 'ts';
+    }
+    
+    console.log(`⏭️ Skipping ${filename} - no matching conversion rule`);
+    return false;
   }
 
   /**
@@ -639,27 +913,61 @@ class MigrationAgentService {
         }
       }
       
-      // If no JSON found, try to parse the entire response as JSON
+      // If no JSON found, check if it's direct code output (especially for TSX to JSX)
       if (!parsedResult) {
-        try {
-          parsedResult = JSON.parse(text);
-          console.log(' Parsed entire response as JSON');
-        } catch (jsonError) {
-          console.log('⚠️ Entire response is not JSON, trying to extract from markdown');
-          // Try to extract JSON from markdown code blocks
-          const markdownMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-          if (markdownMatch) {
-            try {
-              parsedResult = JSON.parse(markdownMatch[1]);
-              console.log(' Extracted JSON from markdown');
-            } catch (markdownError) {
-              console.log('⚠️ Markdown extraction failed, using fallback');
-              parsedResult = null;
+        // For TSX to JSX conversion, expect direct code output
+        if (options.fromLang === 'typescript' && options.toLang === 'javascript') {
+          console.log(' TSX to JSX conversion - treating as direct code');
+          parsedResult = {
+            migratedCode: text,
+            summary: 'TSX converted to JSX with preserved syntax',
+            changes: ['Removed TypeScript type annotations', 'Preserved JSX syntax'],
+            files: [{
+              filename: relevantChunks[0]?.fileName || relevantChunks[0]?.filename || 'converted.jsx',
+              migratedFilename: this.generateMigratedFilename(relevantChunks[0], options.toLang),
+              content: text
+            }],
+            warnings: [],
+            recommendations: []
+          };
+        } else {
+          try {
+            parsedResult = JSON.parse(text);
+            console.log(' Parsed entire response as JSON');
+          } catch (jsonError) {
+            console.log('⚠️ Entire response is not JSON, trying to extract from markdown');
+            // Try to extract JSON from markdown code blocks
+            const markdownMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+            if (markdownMatch) {
+              try {
+                parsedResult = JSON.parse(markdownMatch[1]);
+                console.log(' Extracted JSON from markdown');
+              } catch (markdownError) {
+                console.log('⚠️ Markdown extraction failed, using fallback');
+                parsedResult = null;
+              }
+            } else {
+            parsedResult = null;
             }
-          } else {
-          parsedResult = null;
           }
         }
+      }
+      
+      // Final fallback - if no JSON found at all, treat as direct code
+      if (!parsedResult) {
+        console.log('⚠️ No JSON found, treating entire response as direct code');
+        parsedResult = {
+          migratedCode: text,
+          summary: 'Code converted successfully',
+          changes: ['Converted syntax'],
+          files: [{
+            filename: relevantChunks[0]?.fileName || relevantChunks[0]?.filename || 'converted.js',
+            migratedFilename: this.generateMigratedFilename(relevantChunks[0], options.toLang),
+            content: text
+          }],
+          warnings: [],
+          recommendations: []
+        };
       }
       
       // If we have a parsed JSON result, use it
@@ -1755,6 +2063,10 @@ CRITICAL INSTRUCTIONS FOR PRODUCTION-READY MIGRATION:
 14. USE PROPER LANGUAGE CONSTRUCTS: Use appropriate language-specific constructs for the target language
 15. MAINTAIN COMMENTS: Preserve all original comments and add migration-specific comments only where necessary
 16. COMPLETE CONVERSION: The output must contain ALL classes, methods, and functionality from the input
+17. JSX/TSX CONVERSIONS: When converting from TSX to JSX, PRESERVE ALL JSX SYNTAX - NEVER use React.createElement()
+18. SYNTAX-ONLY CONVERSION: ONLY change syntax elements (type annotations, keywords, etc.) - NEVER change the overall logic or structure
+19. PRESERVE FILE PURPOSE: If the original is a config file, keep it as a config file. If it's a component, keep it as a component.
+20. NO CODE GENERATION: Do not generate new code that wasn't in the original - only convert existing code syntax
 
 PRODUCTION-READY CODE REQUIREMENTS:
 17. GENERATE COMPLETE MODULES: Create full, self-contained modules with proper imports/exports, not basic scripts
@@ -1825,6 +2137,71 @@ When converting from JavaScript to TypeScript, you MUST make these specific chan
 - Add parameter types: function greet(name: string): void
 - Convert classes with proper typing
 - Add proper TypeScript syntax and remove JavaScript-specific constructs
+
+TYPESCRIPT TO JAVASCRIPT SPECIFIC CONVERSIONS (CRITICAL FOR TSX/JSX):
+When converting from TypeScript to JavaScript, you MUST make these specific changes:
+- PRESERVE JSX SYNTAX: Keep all JSX elements exactly as they are (<div>, <h1>, etc.) - DO NOT convert to React.createElement()
+- Remove type annotations: let name: string = "John" → let name = "John"
+- Remove interface definitions: interface User { name: string } → (remove entirely)
+- Remove type parameters: function greet(name: string): void → function greet(name) { }
+- Remove return type annotations: function getName(): string → function getName() { }
+- Remove generic type parameters: Array<string> → Array
+- Remove type assertions: value as string → value
+- Remove optional property markers: name?: string → name
+- Remove readonly modifiers: readonly name: string → name: string
+- PRESERVE ALL JSX: Keep <div>, <span>, <button>, etc. exactly as written
+- PRESERVE ALL REACT COMPONENTS: Keep component structure and JSX syntax intact
+- PRESERVE ALL PROPS: Keep prop passing and destructuring exactly as written
+- PRESERVE ALL EVENT HANDLERS: Keep onClick, onChange, etc. exactly as written
+- PRESERVE ALL CONDITIONAL RENDERING: Keep {condition && <Component />} syntax
+- PRESERVE ALL LOOPS: Keep {items.map(item => <Item key={item.id} />)} syntax
+- CRITICAL: NEVER use React.createElement() - always preserve JSX syntax
+- CRITICAL: NEVER change the component structure or logic
+- CRITICAL: ONLY remove TypeScript-specific syntax, keep everything else identical
+
+TYPESCRIPT TO JAVASCRIPT EXAMPLES:
+WRONG (using React.createElement):
+const Header = ({ title }) => {
+  return React.createElement('h1', { className: 'title' }, title);
+};
+
+CORRECT (preserving JSX):
+const Header = ({ title }) => {
+  return <h1 className="title">{title}</h1>;
+};
+
+WRONG (changing structure):
+const App = () => {
+  return React.createElement('div', null, 
+    React.createElement('h1', null, 'Hello World')
+  );
+};
+
+CORRECT (preserving JSX):
+const App = () => {
+  return (
+    <div>
+      <h1>Hello World</h1>
+    </div>
+  );
+};
+
+CONFIG FILE CONVERSION EXAMPLES:
+WRONG (changing file purpose):
+Original: export default { content: ['./src/**/*.js'], theme: { extend: {} } }
+Converted: function App() { return <div>...</div> }
+
+CORRECT (preserving file purpose):
+Original: export default { content: ['./src/**/*.js'], theme: { extend: {} } }
+Converted: export default { content: ['./src/**/*.js'], theme: { extend: {} } }
+
+WRONG (generating new code):
+Original: const config = { api: 'localhost:3000' }
+Converted: class ApiService { constructor() { this.baseUrl = 'localhost:3000' } }
+
+CORRECT (syntax-only conversion):
+Original: const config = { api: 'localhost:3000' }
+Converted: const config = { api: 'localhost:3000' }
 
 DATABASE CONVERSION SPECIFIC INSTRUCTIONS:
 When converting between database systems, you MUST follow these patterns:
@@ -2018,24 +2395,22 @@ When converting from C# to Java, you MUST make these specific changes:
 - PRESERVE ALL CLASSES AND METHODS: Convert every class and method, don't drop functionality
 
 RESPONSE FORMAT:
-Please provide your response as a JSON object with the following structure:
-{
-  "migratedCode": "The complete migrated code content (NOT JSON, but actual code)",
-  "summary": "Brief summary of what was migrated",
-  "changes": ["List of key changes made"],
-  "files": [
-    {
-      "filename": "original-filename.ext",
-      "migratedFilename": "new-filename.ext", 
-      "content": "The complete migrated code content (NOT JSON, but actual code)"
-    }
-  ],
-  "warnings": [
-    "List any architectural challenges or limitations"
-  ],
-  "recommendations": [
-    "Suggestions for further manual refactoring"
-  ]
+CRITICAL: Return ONLY the migrated code content. Do NOT wrap it in JSON, do NOT use JSON structure, do NOT add any metadata.
+
+For TSX to JSX conversion:
+- Return ONLY the JavaScript code with JSX syntax preserved
+- Remove TypeScript type annotations
+- Keep all JSX elements exactly as they are
+- Do NOT use React.createElement()
+- Do NOT wrap in JSON
+
+Example:
+WRONG (JSON wrapped):
+{"migratedCode": "function App() { return <div>Hello</div>; }"}
+
+CORRECT (direct code):
+function App() {
+  return <div>Hello</div>;
 }
 
 CRITICAL: Return ONLY the JSON object above. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. The response must be pure JSON that can be parsed directly.

@@ -254,7 +254,7 @@ export const uploadZipToCloudinary = async (req, res) => {
       }
 
       processingStats.totalFiles++;
-      console.log(`📄 Processing file ${processingStats.totalFiles}: ${entry.entryName}`);
+      console.log(`📄 Processing file ${processingStats.totalFiles}/${zipEntries.length}: ${entry.entryName}`);
 
       try {
         // Extract file content
@@ -263,9 +263,13 @@ export const uploadZipToCloudinary = async (req, res) => {
         const folderPath = path.dirname(entry.entryName).replace(/^\./, ''); // Remove leading dot
         const relativePath = entry.entryName;
 
+        console.log(`📄 File details: ${fileName}, size: ${fileContent.length} bytes, extension: ${path.extname(fileName)}`);
+
         // Determine file type and create appropriate folder structure
         const extension = path.extname(fileName).toLowerCase();
         const fileType = getFileTypeFromExtension(extension);
+        
+        console.log(`📄 File type detected: ${fileType} for extension: ${extension}`);
         
         // Create chunking-friendly folder structure
         const cloudinaryFolder = createChunkingFriendlyPath(zipBasePath, folderPath, fileType, fileName);
@@ -313,9 +317,10 @@ export const uploadZipToCloudinary = async (req, res) => {
                 console.log(`📋 Result keys:`, result ? Object.keys(result) : 'null');
                 
                 if (result && result.secure_url && result.public_id) {
-                  console.log(`✅ Found valid Cloudinary result`);
+                  console.log(`✅ Found valid Cloudinary result for ${fileName}`);
                   resolve(result);
                 } else {
+                  console.error(`❌ Invalid Cloudinary result structure for ${relativePath}:`, result);
                   reject(new Error(`Invalid Cloudinary result structure for ${relativePath}`));
                 }
               }
@@ -437,9 +442,13 @@ export const uploadZipToCloudinary = async (req, res) => {
         console.error(`❌ Error processing file ${entry.entryName}:`, fileError);
         processingStats.errors.push({
           file: entry.entryName,
-          error: fileError.message
+          error: fileError.message,
+          stack: fileError.stack
         });
         processingStats.skippedFiles++;
+        
+        // Continue processing other files even if this one failed
+        console.log(`⏭️ Continuing with next file after error in ${entry.entryName}`);
       }
     }
 
@@ -495,6 +504,14 @@ export const uploadZipToCloudinary = async (req, res) => {
     console.log(`⏭️  Skipped: ${processingStats.skippedFiles} files skipped`);
     console.log(`💾 Database records: ${uploadedFiles.length} files saved`);
     
+    // Processing summary
+    console.log(`\n📊 ZIP Processing Summary:`);
+    console.log(`   📁 Total entries: ${zipEntries.length}`);
+    console.log(`   📄 Total files: ${processingStats.totalFiles}`);
+    console.log(`   ✅ Processed: ${processingStats.processedFiles}`);
+    console.log(`   ⏭️ Skipped: ${processingStats.skippedFiles}`);
+    console.log(`   ❌ Errors: ${processingStats.errors.length}`);
+    
     if (processingStats.errors.length > 0) {
       console.log(`\n❌ Files with errors:`);
       processingStats.errors.forEach((error, index) => {
@@ -523,6 +540,13 @@ export const uploadZipToCloudinary = async (req, res) => {
 
         console.log(`✅ Migration job created: ${migrationJob._id}`);
         console.log(`📦 ZIP file URL: ${zipCloudinaryResult.secure_url}`);
+        console.log(`📊 Job details:`, {
+          sessionId: migrationJob.sessionId,
+          userId: migrationJob.userId,
+          totalFiles: migrationJob.totalFiles,
+          status: migrationJob.status,
+          createdAt: migrationJob.createdAt
+        });
         
         // Do NOT trigger inline chunking here.
         // BackgroundJobProcessor will pick up the job and process it to avoid duplicates.

@@ -107,6 +107,11 @@ class ASTParsingService {
         return this.simpleChunking(content, relativePath, fileName, extension);
       }
       
+      // Special handling for TSX files
+      if (extension === '.tsx') {
+        console.log(`🔧 Processing TSX file: ${fileName}`);
+      }
+      
       try {
         this.parser.setLanguage(Language);
         const tree = this.parser.parse(content);

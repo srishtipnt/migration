@@ -58,6 +58,7 @@ class BackgroundJobProcessor {
   async processNextJob() {
     // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
+      console.log('⏳ MongoDB not connected, skipping job processing');
       return;
     }
 
@@ -66,6 +67,12 @@ class BackgroundJobProcessor {
       _id: { $nin: Array.from(this.currentJobs) },
       totalChunks: 0  // Only process jobs that haven't been chunked yet
     }).sort({ createdAt: 1 });
+
+    if (job) {
+      console.log(`🔄 Found job to process: ${job.sessionId} (status: ${job.status})`);
+    } else {
+      console.log('⏳ No pending jobs found');
+    }
 
     if (!job) {
       return; // No pending or processing jobs
@@ -99,6 +106,7 @@ class BackgroundJobProcessor {
       // Step 3: Walk file tree and chunk code
       console.log(`🔍 Walking file tree for job: ${job.sessionId}`);
       const chunks = await this.walkAndChunkFiles(workspacePath, job);
+      console.log(`📊 Generated ${chunks.length} chunks from ${job.totalFiles} files`);
       
       // Step 4: Generate embeddings for chunks using Gemini API
       console.log(`🧠 Generating embeddings for ${chunks.length} chunks using Gemini API`);
@@ -245,6 +253,7 @@ class BackgroundJobProcessor {
   async walkAndChunkFiles(workspacePath, job) {
     const chunks = [];
     let processedFiles = 0;
+    let totalFiles = 0;
     
     const walkDir = async (dirPath, relativePath = '') => {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
@@ -257,13 +266,16 @@ class BackgroundJobProcessor {
           await walkDir(fullPath, currentRelativePath);
         } else if (entry.isFile()) {
           const fileExtension = path.extname(entry.name).toLowerCase();
+          totalFiles++;
           
           // Only process code files
           if (this.isCodeFile(fileExtension)) {
+            console.log(`📄 Processing code file: ${currentRelativePath} (${fileExtension})`);
             try {
               const fileChunks = await this.chunkFile(fullPath, currentRelativePath, fileExtension);
               chunks.push(...fileChunks);
               processedFiles++;
+              console.log(`✅ Processed ${currentRelativePath}: ${fileChunks.length} chunks`);
               
               // Update progress every 10 files
               if (processedFiles % 10 === 0) {
@@ -272,12 +284,15 @@ class BackgroundJobProcessor {
             } catch (error) {
               console.error(`❌ Error processing file ${currentRelativePath}:`, error);
             }
+          } else {
+            console.log(`⏭️ Skipping non-code file: ${currentRelativePath} (${fileExtension})`);
           }
         }
       }
     };
     
     await walkDir(workspacePath);
+    console.log(`📊 File processing summary: ${processedFiles} code files processed out of ${totalFiles} total files`);
     return chunks;
   }
 

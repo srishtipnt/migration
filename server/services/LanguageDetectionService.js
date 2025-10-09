@@ -388,13 +388,12 @@ class LanguageDetectionService {
     // Language/Syntax detection patterns (Level 2)
     this.syntaxPatterns = {
       typescript: {
-        extensions: ['.ts', '.tsx'],
+        extensions: ['.ts'],
         contentPatterns: [
           /interface\s+\w+/,
           /type\s+\w+\s*=/,
           /:\s*string|:\s*number|:\s*boolean/,
           /as\s+\w+/,
-          /<[^>]*>/,
           /enum\s+\w+/
         ]
       },
@@ -423,9 +422,20 @@ class LanguageDetectionService {
           /<[A-Z]\w+/,
           /className=/,
           /onClick=/,
+          /onChange=/,
+          /onSubmit=/,
+          /useState\s*\(/,
+          /useEffect\s*\(/,
           /interface\s+\w+/,
-          /:\s*React\./
-        ]
+          /type\s+\w+\s*=/,
+          /:\s*React\./,
+          /import\s+.*from\s+['"]react['"]/,
+          /export\s+default\s+function/,
+          /export\s+const\s+\w+\s*=/,
+          /return\s*\(/,
+          /<[A-Z]\w+[^>]*>/
+        ],
+        priority: 95
       },
       php: {
         extensions: ['.php'],
@@ -493,7 +503,7 @@ class LanguageDetectionService {
       '.js': 'javascript',
       '.jsx': 'javascript',
       '.ts': 'typescript',
-      '.tsx': 'typescript',
+      '.tsx': 'tsx',
       '.php': 'php',
       '.rb': 'ruby',
       '.py': 'python',
@@ -610,6 +620,11 @@ class LanguageDetectionService {
       
       if (matchingPatterns.length > 0) {
         confidence += (matchingPatterns.length / rules.contentPatterns.length) * 0.6;
+      }
+
+      // Apply priority boost if defined
+      if (rules.priority && rules.priority > 0) {
+        confidence += (rules.priority / 100) * 0.2;
       }
 
       if (confidence > bestMatch.confidence) {

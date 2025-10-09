@@ -51,9 +51,9 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
   const handleDownloadAll = () => {
     if (result.files && Array.isArray(result.files)) {
       result.files.forEach((file: Record<string, unknown>) => {
-        handleDownloadFile(file);
-      });
-      toast.success('All files downloaded!');
+      handleDownloadFile(file);
+    });
+    toast.success('All files downloaded!');
     }
   };
 
@@ -270,7 +270,7 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
 
             {/* Monaco Editor Side-by-Side Code Display */}
             <div className="flex-1 overflow-hidden">
-              {processedOriginalContent && processedMigratedContent ? (
+                  {processedOriginalContent && processedMigratedContent ? (
                 <MonacoCodeViewer
                   originalCode={processedOriginalContent}
                   migratedCode={processedMigratedContent}
@@ -294,15 +294,15 @@ const InlineMigrationResults: React.FC<InlineMigrationResultsProps> = ({ result,
                 />
               ) : (
                 <div className="flex items-center justify-center h-96 text-gray-500 bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No Content to Display</h3>
-                    <p className="text-sm text-gray-500">
-                      The content is not available for this file.
-                    </p>
-                  </div>
-                </div>
-              )}
+                      <div className="text-center">
+                        <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Content to Display</h3>
+                        <p className="text-sm text-gray-500">
+                          The content is not available for this file.
+                        </p>
+                      </div>
+                    </div>
+                  )}
             </div>
           </div>
         )}
