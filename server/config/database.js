@@ -7,7 +7,7 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.NODE_ENV === 'test' 
       ? process.env.MONGODB_TEST_URI 
-      : process.env.MONGODB_URI;
+      : (process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/migration');
 
     const conn = await mongoose.connect(mongoURI, {
       // Connection timeout settings
@@ -24,6 +24,9 @@ const connectDB = async () => {
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    if (!process.env.MONGODB_URI && !process.env.MONGO_URI && process.env.NODE_ENV !== 'test') {
+      console.warn('MONGODB_URI is not set; using local fallback mongodb://127.0.0.1:27017/migration');
+    }
     
     // Enable command buffering to handle requests before connection is ready
     mongoose.set('bufferCommands', true);
